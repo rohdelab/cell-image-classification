@@ -44,7 +44,7 @@ def build_model(model_name, input_shape, num_classes):
         model.add(Dense(num_classes))
         model.add(Activation('softmax'))
     else:
-        include_top = False
+        include_top = True
         if model_name == 'VGG16':
             model = vgg16.VGG16(weights='imagenet', include_top=include_top, input_shape=input_shape)
         elif model_name == 'DenseNet':
@@ -72,7 +72,6 @@ def nn_clf(model_name, dataset):
             assert x_train.ndim == 4
             assert x_train.shape[-1] == 3
 
-    print(x_train.shape)
     classnames = dataset['classnames']
 
     y_train = keras.utils.to_categorical(y_train, num_classes=len(classnames))
