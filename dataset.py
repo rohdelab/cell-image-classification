@@ -51,7 +51,7 @@ def save_wndchrm_feats(dataset):
         'x_test': x_test, 'y_test': y_test,
         'classnames': dataset['classnames']
     }
-    np.savez('hela_wndchrm_feats224.npz', **dataset)
+    np.savez('data/hela_wndchrm_feats224.npz', **dataset)
 
 
 def load_data(root, target_size):
@@ -93,5 +93,5 @@ def load_dataset(space='image'):
     if space == 'image':
         dataset = load_data('data/hela', target_size=224)
     elif space == 'wndchrm':
-        dataset = np.load('hela_wndchrm_feats224.npz')
+        dataset = np.load('data/hela_wndchrm_feats224.npz')
     return dataset
