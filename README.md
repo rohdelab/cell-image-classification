@@ -19,13 +19,13 @@ Neural Netwoks Training
               validation_split=0.1, shuffle=True, callbacks=[early_stop])
 Performances
 
-    VGG16 transfer learning (early stopping):
+    VGG16 transfer learning:
     Epoch 26/500
      - 8s - loss: 3.7375e-05 - acc: 1.0000 - val_loss: 0.9353 - val_acc: 0.8116
     train accuracy: 0.9811320758177338
     test accuracy: 0.8208092485549133
 
-    DenseNet121 transfer learning (early stopping):
+    DenseNet121 transfer learning:
     Epoch 500/500
      - 8s - loss: 0.8985 - acc: 0.9984 - val_loss: 0.9542 - val_acc: 0.9710
     train accuracy: 0.9956458635703919
