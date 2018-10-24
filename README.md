@@ -1,9 +1,10 @@
 
-Usage
+## Usage
         main.py [-h] {KNN,RF,LR,SVM,MLP,VGG16,DenseNet} {image,wndchrm}
 
-PERFORMANCE STATS
+## PERFORMANCE STATS
         VGG16 transfer learning performance:
+        
         Epoch 26/500
          - 8s - loss: 3.7375e-05 - acc: 1.0000 - val_loss: 0.9353 - val_acc: 0.8116
         689/689 [==============================] - 4s 5ms/step
