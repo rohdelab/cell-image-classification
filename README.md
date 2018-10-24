@@ -3,7 +3,9 @@
         main.py [-h] {KNN,RF,LR,SVM,MLP,VGG16,DenseNet} {image,wndchrm}
 
 ## Dataset
-        The 2D Hela Dataset (https://ome.irp.nia.nih.gov/iicbu2008/), fluorescence microscopy images of HeLa cells of 10 classes, 860 382x382 16 bit TIFF images (689 images for training and 173 for testing).
+        The 2D Hela Dataset (https://ome.irp.nia.nih.gov/iicbu2008/)
+        Fluorescence microscopy images of HeLa cells of 10 classes
+        860 382x382 16 bit TIFF images, of which 689 used for training and 173 for testing
         
 ## PERFORMANCE STATS
         VGG16 transfer learning (early stopping):
