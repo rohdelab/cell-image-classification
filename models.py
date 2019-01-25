@@ -1,23 +1,14 @@
-import keras
+import sys
+sys.path.append('optimaltransport')
 import numpy as np
-from keras.models import Sequential, Model
-from keras.callbacks import EarlyStopping
-from keras.layers import Dense, Dropout, Activation, Flatten, Conv2D, MaxPooling2D
-from keras.models import Sequential
-from keras.preprocessing.image import ImageDataGenerator
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import classification_report
 from sklearn.metrics import confusion_matrix
-from sklearn.model_selection import cross_val_score
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.svm import SVC
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.decomposition import PCA
-from sklearn.preprocessing import StandardScaler
-from keras.applications import nasnet
-from keras.applications import densenet
-from keras.applications import resnet50
-from keras.applications import vgg16
+from optimaltransport.optrans.decomposition import PLDA
 
 
 def report(classnames, clf, x_test, x_train, y_test, y_train):
@@ -33,12 +24,17 @@ def report(classnames, clf, x_test, x_train, y_test, y_train):
 
 
 def build_model(model_name, input_shape, num_classes):
+    from keras.layers import Dense, Dropout, Activation, Flatten
+    from keras.models import Sequential
+    from keras.applications import densenet
+    from keras.applications import vgg16
+    from keras.models import Model
     if model_name == 'MLP':
         model = Sequential()
         model.add(Dense(256, input_shape=input_shape))
         model.add(Activation('relu'))
         model.add(Dropout(0.5))
-        model.add(Dense(256))
+        model.add(Dense(512))
         model.add(Activation('relu'))
         model.add(Dropout(0.5))
         model.add(Dense(num_classes))
@@ -53,12 +49,14 @@ def build_model(model_name, input_shape, num_classes):
         if not include_top:
             x = Flatten()(x)
         predictions = Dense(num_classes, activation="softmax")(x)
-        model = Model(input=model.input, output=predictions)
+        model = Model(inputs=model.input, outputs=predictions)
 
     return model
 
 
-def nn_clf(model_name, dataset):
+def nn_clf(model_name, dataset, args):
+    import keras
+    from keras.callbacks import EarlyStopping
     x_train, y_train = dataset['x_train'], dataset['y_train']
     x_test, y_test = dataset['x_test'], dataset['y_test']
     if model_name == 'MLP':
@@ -89,12 +87,13 @@ def nn_clf(model_name, dataset):
     report(classnames, model, x_test, x_train, y_test, y_train)
 
 
-def sklearn_clf(model_name, dataset):
+def sklearn_clf(model_name, dataset, args):
     clf = {
         'RF': RandomForestClassifier(),
         'LR': LogisticRegression(random_state=0, solver='lbfgs', multi_class='multinomial', max_iter=300),
         'KNN': KNeighborsClassifier(n_neighbors=3),
         'SVM': SVC(),
+        'PLDA': PLDA(args.plda_alpha, args.plda_ncomps)
     }[model_name]
 
     x_train, y_train = dataset['x_train'], dataset['y_train']
@@ -102,7 +101,16 @@ def sklearn_clf(model_name, dataset):
     x_train = np.reshape(x_train, (x_train.shape[0], -1))
     x_test = np.reshape(x_test, (x_test.shape[0], -1))
     classnames = dataset['classnames']
-    clf.fit(x_train, y_train)
+    if model_name != 'PLDA':
+        clf.fit(x_train, y_train)
+    else:
+        pca = PCA()
+        print("Dimensions before PCA: ", x_train.shape[1])
+        x_train = pca.fit_transform(x_train)
+        x_test = pca.transform(x_test)
+        print("Dimensions after PCA: ", x_train.shape[1])
+        clf = PLDA(n_components=args.plda_ncomps, alpha=args.plda_alpha)
+        clf.fit(x_train, y_train)
 
     report(classnames, clf, x_test, x_train, y_test, y_train)
 

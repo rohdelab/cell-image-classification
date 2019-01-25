@@ -1,3 +1,6 @@
+import sys
+sys.path.append('optimaltransport')
+
 import matplotlib.pyplot as plt
 import numpy as np
 import os
@@ -6,6 +9,10 @@ from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 from wndcharm.FeatureVector import FeatureVector
 from wndcharm.PyImageMatrix import PyImageMatrix
+from optimaltransport.optrans.continuous import RadonCDT
+from optimaltransport.optrans.utils import signal_to_pdf
+from itertools import zip_longest
+from sklearn.decomposition import PCA
 
 
 def extract_wndchrm_feats(gray_img):
@@ -54,6 +61,52 @@ def save_wndchrm_feats(dataset):
     np.savez('data/hela_wndchrm_feats224.npz', **dataset)
 
 
+def rcdt_transform_parallel(x, template=None, nprocesses=40):
+    from multiprocessing import Pool
+    p = Pool(nprocesses)
+    splits = np.array_split(x, nprocesses)
+    if template is None:
+        template = np.ones(x.shape[1:]).astype('float32')
+        template = template / template.sum()
+    results = p.starmap(rcdt_transform, zip_longest(splits, [template], fillvalue=template))
+    result = np.vstack(results)
+    return result
+    # result = result - result.min(axis=(1, 2), keepdims=True)
+    # result = result / result.max(axis=(1, 2), keepdims=True)
+    # result = result * 255
+    # return result.astype('uint8')
+
+
+def rcdt_transform(x, template):
+    x_trans = []
+    for i in range(x.shape[0]):
+        img = signal_to_pdf(x[i])
+        radoncdt = RadonCDT()
+        rcdt = radoncdt.forward(template, img)
+        x_trans.append(rcdt.astype('float32'))
+    x_trans = np.array(x_trans)
+    return x_trans
+
+
+def save_rcdt_feats(dataset):
+    x_train, y_train = dataset['x_train'], dataset['y_train']
+    x_test, y_test = dataset['x_test'], dataset['y_test']
+    x_train = rcdt_transform_parallel(x_train)
+    x_test = rcdt_transform_parallel(x_test)
+    pcat = PCA(n_components=200)
+    x_train = pcat.fit_transform(x_train.reshape((x_train.shape[0], -1)))
+    x_test = pcat.transform(x_test.reshape((x_test.shape[0], -1)))
+    scaler = StandardScaler()
+    x_train = scaler.fit_transform(x_train)
+    x_test = scaler.transform(x_test)
+    dataset = {
+        'x_train': x_train, 'y_train': y_train,
+        'x_test': x_test, 'y_test': y_test,
+        'classnames': dataset['classnames']
+    }
+    np.savez('data/hela_rcdt_feats224.npz', **dataset)
+
+
 def load_data(root, target_size):
     x = []
     y = []
@@ -68,7 +121,7 @@ def load_data(root, target_size):
                 y.append(path.split('/')[-1])
             except IOError:
                 pass
-    classnames = list(set(y))
+    classnames = sorted(list(set(y)))
     classname2idex = {name: i for i, name in enumerate(classnames)}
     y = np.array([classname2idex[name] for name in y])
     x = np.array(x).astype('float32')
@@ -94,4 +147,20 @@ def load_dataset(space='image'):
         dataset = load_data('data/hela', target_size=224)
     elif space == 'wndchrm':
         dataset = np.load('data/hela_wndchrm_feats224.npz')
+    elif space == 'rcdt':
+        dataset = np.load('data/hela_rcdt_feats224.npz')
     return dataset
+
+
+if __name__ == '__main__':
+    dataset = load_dataset(space='image')
+    print("dataset stats:")
+    print("train images {}, test iamges {}, image dimension: {}, number classes: {}".format(dataset['x_train'].shape[0],
+                                                                                            dataset['x_test'].shape[0],
+                                                                                            dataset['x_train'].shape[1:],
+                                                                                            len(dataset['classnames'])))
+    print("saving wndchrm features...")
+    save_wndchrm_feats(dataset)
+    print("RCDT transform...")
+    save_rcdt_feats(dataset)
+
