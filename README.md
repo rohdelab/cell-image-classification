@@ -1,7 +1,7 @@
 
 Usage
 
-    main.py [-h] {PLDA,KNN,RF,LR,SVM,MLP,VGG16,DenseNet} {image,wndchrm}
+    main.py [-h] {image,wndchrm,rcdt} {PLDA,KNN,RF,LR,SVM,MLP,VGG16,DenseNet} 
 
 Dataset
 
