@@ -14,6 +14,9 @@ from optimaltransport.optrans.utils import signal_to_pdf
 from itertools import zip_longest
 from sklearn.decomposition import PCA
 
+image_target_size = 224
+wndchrm_feat_file = 'data/hela_wndchrm_feats{}.npz'.format(image_target_size)
+rcdt_feat_file = 'data/hela_rcdt_feats{}.npz'.format(image_target_size)
 
 def extract_wndchrm_feats(gray_img):
     # grayscale image
@@ -50,15 +53,12 @@ def save_wndchrm_feats(dataset):
     x_test = (x_test * 255).astype(np.uint8)
     x_train = extract_wndchrm_feats_parallel(x_train)
     x_test = extract_wndchrm_feats_parallel(x_test)
-    scaler = StandardScaler()
-    x_train = scaler.fit_transform(x_train)
-    x_test = scaler.transform(x_test)
     dataset = {
         'x_train': x_train, 'y_train': y_train,
         'x_test': x_test, 'y_test': y_test,
         'classnames': dataset['classnames']
     }
-    np.savez('data/hela_wndchrm_feats224.npz', **dataset)
+    np.savez(wndchrm_feat_file, **dataset)
 
 
 def rcdt_transform_parallel(x, template=None, nprocesses=40):
@@ -71,10 +71,6 @@ def rcdt_transform_parallel(x, template=None, nprocesses=40):
     results = p.starmap(rcdt_transform, zip_longest(splits, [template], fillvalue=template))
     result = np.vstack(results)
     return result
-    # result = result - result.min(axis=(1, 2), keepdims=True)
-    # result = result / result.max(axis=(1, 2), keepdims=True)
-    # result = result * 255
-    # return result.astype('uint8')
 
 
 def rcdt_transform(x, template):
@@ -93,21 +89,15 @@ def save_rcdt_feats(dataset):
     x_test, y_test = dataset['x_test'], dataset['y_test']
     x_train = rcdt_transform_parallel(x_train)
     x_test = rcdt_transform_parallel(x_test)
-    pcat = PCA(n_components=200)
-    x_train = pcat.fit_transform(x_train.reshape((x_train.shape[0], -1)))
-    x_test = pcat.transform(x_test.reshape((x_test.shape[0], -1)))
-    scaler = StandardScaler()
-    x_train = scaler.fit_transform(x_train)
-    x_test = scaler.transform(x_test)
     dataset = {
         'x_train': x_train, 'y_train': y_train,
         'x_test': x_test, 'y_test': y_test,
         'classnames': dataset['classnames']
     }
-    np.savez('data/hela_rcdt_feats224.npz', **dataset)
+    np.savez(rcdt_feat_file, **dataset)
 
 
-def load_data(root, target_size):
+def load_images(root, target_size):
     x = []
     y = []
     for path, subdirs, files in os.walk(root):
@@ -126,7 +116,7 @@ def load_data(root, target_size):
     y = np.array([classname2idex[name] for name in y])
     x = np.array(x).astype('float32')
     x = x / x.max()
-    x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.2, random_state=42)
+    x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.2, random_state=0)
     return {'x_train': x_train, 'y_train': y_train,
             'x_test': x_test, 'y_test': y_test,
             'classnames': classnames}
@@ -142,25 +132,35 @@ def vis_data(x, y):
     plt.show()
 
 
-def load_dataset(space='image'):
-    if space == 'image':
-        dataset = load_data('data/hela', target_size=224)
+def load_dataset(space='raw'):
+    if space == 'raw':
+        dataset = load_images('data/hela', target_size=image_target_size)
+        print('loaded raw images')
     elif space == 'wndchrm':
-        dataset = np.load('data/hela_wndchrm_feats224.npz')
+        if not os.path.isfile(wndchrm_feat_file):
+            print('precomputed RCDT features not found, computing and saving {}...'.format(wndchrm_feat_file))
+            save_wndchrm_feats(load_images('data/hela', target_size=image_target_size))
+        dataset = np.load(wndchrm_feat_file)
+        print('loaded wndchrm features')
     elif space == 'rcdt':
-        dataset = np.load('data/hela_rcdt_feats224.npz')
+        if not os.path.isfile(rcdt_feat_file):
+            print('precomputed RCDT features not found, computing and saving {}...'.format(rcdt_feat_file))
+            save_rcdt_feats(load_images('data/hela', target_size=image_target_size))
+        dataset = np.load(rcdt_feat_file)
+        print('loaded RCDT features')
     return dataset
 
 
 if __name__ == '__main__':
-    dataset = load_dataset(space='image')
+    dataset = load_dataset(space='raw')
     print("dataset stats:")
-    print("train images {}, test iamges {}, image dimension: {}, number classes: {}".format(dataset['x_train'].shape[0],
-                                                                                            dataset['x_test'].shape[0],
-                                                                                            dataset['x_train'].shape[1:],
-                                                                                            len(dataset['classnames'])))
-    print("saving wndchrm features...")
+    print("train images {}, test iamges {}, image dimension: {}, "
+          "number classes: {}".format(dataset['x_train'].shape[0],
+                                      dataset['x_test'].shape[0],
+                                      dataset['x_train'].shape[1:],
+                                      len(dataset['classnames'])))
+    print("computing and saving wndchrm features...")
     save_wndchrm_feats(dataset)
-    print("RCDT transform...")
+    print("computing and saving RCDT transform...")
     save_rcdt_feats(dataset)
 
