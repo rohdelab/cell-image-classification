@@ -1,7 +1,28 @@
 
 Usage
 
-    main.py [-h] {image,wndchrm,rcdt} {PLDA,KNN,RF,LR,SVM,MLP,VGG16,DenseNet} 
+    usage: main.py [-h] --space {raw,wndchrm,rcdt} --model
+                   {PLDA,KNN,RF,LR,SVM,MLP,ShallowCNN,VGG16,InceptionV3,DenseNet}
+                   [--transfer-learning] [--PCA-comps PCA_COMPS]
+                   [--PLDA-comps PLDA_COMPS] [--PLDA-alpha PLDA_ALPHA]
+                   [--SVM-kernel SVM_KERNEL] [--CV]
+    
+    P1 Cell Image Classification
+    
+    optional arguments:
+      -h, --help            show this help message and exit
+      --space {raw,wndchrm,rcdt}
+      --model {PLDA,KNN,RF,LR,SVM,MLP,ShallowCNN,VGG16,InceptionV3,DenseNet}
+      --transfer-learning   neural network use pretrained weights instead of
+                            training from scratch
+      --PCA-comps PCA_COMPS
+                            number of PCA components if use PCA
+      --PLDA-comps PLDA_COMPS
+                            number of components if use PLDA
+      --PLDA-alpha PLDA_ALPHA
+                            PLDA alpha
+      --SVM-kernel SVM_KERNEL
+      --CV                  perform cross validation
 
 Dataset
 
