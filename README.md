@@ -44,21 +44,27 @@ optional arguments:
 
 * Train InceptionV3 on image space by fine-tuning a pre-trained model (transfer learning): `python main.py --space image --model InceptionV3 --transfer-learning`
 
-## Model Performances
-```
-VGG16 transfer learning:
-Epoch 26/500
- - 8s - loss: 3.7375e-05 - acc: 1.0000 - val_loss: 0.9353 - val_acc: 0.8116
-train accuracy: 0.9811320758177338
-test accuracy: 0.8208092485549133
-
-DenseNet121 transfer learning:
-Epoch 500/500
- - 8s - loss: 0.8985 - acc: 0.9984 - val_loss: 0.9542 - val_acc: 0.9710
-train accuracy: 0.9956458635703919
-test accuracy: 0.930635838150289
-
-Logistic Regression using wndchrm features:
-train accuracy: 1.0
-test accuracy: 0.9190751445086706
-```
+## Model Performances (10-fold cross validation accuracy)
+* Image Space (before preprocessing)
+    * SVM with linear kernel: 0.46 (+/- 0.07)
+    * Logistic Regression: 0.44 (+/- 0.09)
+    * KNN: 0.44 (+/- 0.09)
+    * Random Forest: 0.44 (+/- 0.09)
+* Image Space (after preprocessing)
+    * SVM with linear kernel: 0.54 (+/- 0.10)
+    * Logistic Regression: 0.51 (+/- 0.13)
+    * KNN: 0.52 (+/- 0.07)
+    * Random Forest: 0.53 (+/- 0.08)
+    * LDA: 0.51 (+/- 0.06)
+* WND-CHRM feature space (before preprocessing)
+    * SVM with linear kernel: 0.92 (+/- 0.04)
+    * Logistic Regression: 0.90 (+/- 0.07)
+    * KNN: 0.83 (+/- 0.05)
+    * Random Forest: 0.74 (+/- 0.06)
+* WND-CHRM feature space (after preprocessing)
+    * SVM with linear kernel: 0.87 (+/- 0.09)
+    * Logistic Regression: 0.85 (+/- 0.05)
+    * KNN: 0.76 (+/- 0.04)
+    * Random Forest: 0.71 (+/- 0.06)
+    * LDA: 0.86 (+/- 0.08)
+    

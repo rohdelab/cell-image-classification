@@ -15,9 +15,10 @@ from itertools import zip_longest
 from sklearn.decomposition import PCA
 
 # image_target_size = 224  # original size 382x382
-image_target_size = 382
-wndchrm_feat_file = 'data/hela_wndchrm_feats{}.npz'.format(image_target_size)
-rcdt_feat_file = 'data/hela_rcdt_feats{}.npz'.format(image_target_size)
+image_target_size = (447, 382)  # width, height
+image_dir = 'data/preprocessed'
+wndchrm_feat_file = 'data/hela_wndchrm_feats{}.npz'.format(*image_target_size)
+rcdt_feat_file = 'data/hela_rcdt_feats{}.npz'.format(*image_target_size)
 
 def extract_wndchrm_feats(gray_img):
     # grayscale image
@@ -98,8 +99,8 @@ def load_images(root, target_size):
             img_path = os.path.join(path, name)
             try:
                 img = Image.open(img_path)
-                if img.size != (target_size, target_size):
-                    img = img.resize((target_size, target_size))
+                if img.size != target_size:
+                    img = img.resize(target_size)
                 x.append(np.asarray(img))
                 y.append(path.split('/')[-1])
             except IOError:
@@ -123,18 +124,18 @@ def vis_data(x, y):
 
 def load_dataset(space='raw'):
     if space == 'raw':
-        dataset = load_images('data/hela', target_size=image_target_size)
+        dataset = load_images(image_dir, target_size=image_target_size)
         print('loaded raw images')
     elif space == 'wndchrm':
         if not os.path.isfile(wndchrm_feat_file):
             print('precomputed RCDT features not found, computing and saving {}...'.format(wndchrm_feat_file))
-            save_wndchrm_feats(load_images('data/hela', target_size=image_target_size))
+            save_wndchrm_feats(load_images(image_dir, target_size=image_target_size))
         dataset = np.load(wndchrm_feat_file)
         print('loaded wndchrm features')
     elif space == 'rcdt':
         if not os.path.isfile(rcdt_feat_file):
             print('precomputed RCDT features not found, computing and saving {}...'.format(rcdt_feat_file))
-            save_rcdt_feats(load_images('data/hela', target_size=image_target_size))
+            save_rcdt_feats(load_images(image_dir, target_size=image_target_size))
         dataset = np.load(rcdt_feat_file)
         print('loaded RCDT features')
     return dataset
@@ -147,6 +148,7 @@ if __name__ == '__main__':
           "number classes: {}".format(dataset['x'].shape[0],
                                       dataset['x'].shape[1:],
                                       len(dataset['classnames'])))
+    print("classes: {}".format(dataset['classnames']))
     print("computing and saving wndchrm features...")
     save_wndchrm_feats(dataset)
     print("computing and saving RCDT transform...")
