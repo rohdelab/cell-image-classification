@@ -10,21 +10,8 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.decomposition import PCA
 from sklearn.preprocessing import StandardScaler
 from optimaltransport.optrans.decomposition import PLDA
-
-
-def report(classnames, clf, x_test, x_train, y_test, y_train):
-    eval_f = clf.score if hasattr(clf, 'score') else clf.evaluate
-    train_acc, test_acc = eval_f(x_train, y_train), eval_f(x_test, y_test)
-    if isinstance(train_acc, list):
-        train_acc, test_acc = train_acc[-1], test_acc[-1]
-    print("train accuracy: {}, test accuracy {}".format(train_acc, test_acc))
-
-    y_pred = clf.predict(x_test)
-    y_pred = np.argmax(y_pred, axis=1) if y_pred.ndim > 1 else y_pred
-    y_test = np.argmax(y_test, axis=1) if y_test.ndim > 1 else y_test
-    print(classification_report(y_test, y_pred, target_names=classnames))
-    print("confusion matrix:")
-    print(confusion_matrix(y_test, y_pred))
+from sklearn.model_selection import StratifiedKFold, cross_val_score, train_test_split
+from sklearn.pipeline import make_pipeline
 
 
 def build_model(model_name, input_shape, num_classes, transfer_learning):
@@ -77,8 +64,8 @@ def build_model(model_name, input_shape, num_classes, transfer_learning):
 def nn_clf(model_name, dataset, args):
     import keras
     from keras.callbacks import EarlyStopping
-    x_train, y_train = dataset['x_train'], dataset['y_train']
-    x_test, y_test = dataset['x_test'], dataset['y_test']
+    x, y = dataset['x'], dataset['y']
+    x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.1, shuffle=True, stratify=y)
     input_shape = x_train.shape[1:]
     x_train = np.reshape(x_train, (x_train.shape[0], -1))
     x_test = np.reshape(x_test, (x_test.shape[0], -1))
@@ -114,36 +101,25 @@ def nn_clf(model_name, dataset, args):
     model.fit(x_train, y_train, verbose=2, batch_size=32, epochs=100,
               validation_split=0.1, shuffle=True, callbacks=[early_stop])
 
-    report(classnames, model, x_test, x_train, y_test, y_train)
+    _, train_acc = model.evaluate(x_train, y_train)
+    _, test_acc = model.evaluate(x_test, y_test)
+    print("train accuracy: {}, test accuracy {}".format(train_acc, test_acc))
 
 
 def sklearn_clf(model_name, dataset, args):
     clf = {
         'RF': RandomForestClassifier(),
-        'LR': LogisticRegression(random_state=0, solver='lbfgs', multi_class='multinomial', max_iter=300),
+        'LR': LogisticRegression(random_state=0, solver='lbfgs', class_weight='balanced', multi_class='ovr'),
         'KNN': KNeighborsClassifier(),
         'SVM': SVC(kernel=args.SVM_kernel, class_weight='balanced', probability=True, decision_function_shape='ovr'),
-        'PLDA': PLDA(args.PLDA_alpha, args.PLDA_comps)
+        'PLDA': PLDA(args.PLDA_alpha, args.PLDA_comps),
+        'LDA': PLDA(args.PLDA_alpha)
     }[model_name]
 
-    print("normalizing features...")
-    x_train, y_train = dataset['x_train'], dataset['y_train']
-    x_test, y_test = dataset['x_test'], dataset['y_test']
-    x_train = np.reshape(x_train, (x_train.shape[0], -1))
-    x_test = np.reshape(x_test, (x_test.shape[0], -1))
-    scaler = StandardScaler()
-    x_train = scaler.fit_transform(x_train)
-    x_test = scaler.transform(x_test)
+    x, y = dataset['x'], dataset['y']
+    x = np.reshape(x, (x.shape[0], -1))
+    cv = StratifiedKFold(n_splits=10, shuffle=True)
 
-    if args.PCA_comps > 0:
-        print("computing PCA {}-> {}...".format(x_train.shape[1], args.PCA_comps))
-        pcai = PCA(n_components=args.PCA_comps)
-        x_train = pcai.fit_transform(x_train)
-        x_test = pcai.transform(x_test)
-
-    classnames = dataset['classnames']
-    clf.fit(x_train, y_train)
-    report(classnames, clf, x_test, x_train, y_test, y_train)
-
-    # scores = cross_val_score(clf, np.vstack([x_train, x_test]), np.hstack((y_train, y_test)), cv=5)
-    # print("Accuracy: %0.2f (+/- %0.2f)" % (scores.mean(), scores.std() * 2))
+    pipeline_clf = make_pipeline(StandardScaler(), PCA(args.PCA_comps), clf)
+    scores = cross_val_score(pipeline_clf, x, y, cv=cv, n_jobs=-1)  # n_jobs=-1 to use all processors
+    print("10-fold cross validation accuracy: %0.2f (+/- %0.2f)" % (scores.mean(), scores.std() * 2))

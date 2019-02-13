@@ -1,3 +1,6 @@
+Dependencies
+    
+    The library requires the WND-CHARM Python API. The API could be installed by following https://github.com/wnd-charm/wnd-charm.
 
 Usage
 

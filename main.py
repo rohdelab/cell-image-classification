@@ -2,19 +2,18 @@ import argparse
 from models import *
 from dataset import *
 
-sklearn_models = ['PLDA', 'KNN', 'RF', 'LR', 'SVM']
-neural_network_models = ['MLP', 'ShallowCNN', 'VGG16', 'InceptionV3', 'DenseNet']
+sklearn_models = ['RF', 'KNN', 'SVM', 'LR', 'LDA', 'PLDA']
+neural_network_models = ['MLP', 'ShallowCNN', 'VGG16', 'InceptionV3']
 parser = argparse.ArgumentParser(description='P1 Cell Image Classification')
 parser.add_argument('--space', choices=['raw', 'wndchrm', 'rcdt'], required=True)
 parser.add_argument('--model', choices=sklearn_models+neural_network_models, required=True)
 parser.add_argument("--transfer-learning",
                     help='neural network use pretrained weights instead of training from scratch',
                     action='store_true')
-parser.add_argument("--PCA-comps", type=int, default=-1, help='number of PCA components if use PCA')
+parser.add_argument("--PCA-comps", type=int, default=128, help='number of PCA components if use PCA')
 parser.add_argument("--PLDA-comps", type=int, default=100, help='number of components if use PLDA')
-parser.add_argument("--PLDA-alpha", type=float, default=100.0, help='PLDA alpha')
+parser.add_argument("--PLDA-alpha", type=float, default=0.001, help='PLDA alpha')
 parser.add_argument("--SVM-kernel", type=str, default='linear')
-parser.add_argument("--CV", help='perform cross validation', action='store_true')
 
 if __name__ == '__main__':
     args = parser.parse_args()

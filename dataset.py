@@ -14,7 +14,8 @@ from optimaltransport.optrans.utils import signal_to_pdf
 from itertools import zip_longest
 from sklearn.decomposition import PCA
 
-image_target_size = 224
+# image_target_size = 224  # original size 382x382
+image_target_size = 382
 wndchrm_feat_file = 'data/hela_wndchrm_feats{}.npz'.format(image_target_size)
 rcdt_feat_file = 'data/hela_rcdt_feats{}.npz'.format(image_target_size)
 
@@ -35,27 +36,22 @@ def extract_wndchrm_feats_batch(gray_imgs):
     return np.array(batch_feats)
 
 
-def extract_wndchrm_feats_parallel(gray_imgs, nprocesses=40):
-    from multiprocessing import Pool
-    p = Pool(nprocesses)
-    splits = np.array_split(gray_imgs, nprocesses)
+def extract_wndchrm_feats_parallel(gray_imgs):
+    import multiprocessing
+    p = multiprocessing.Pool(multiprocessing.cpu_count())
+    splits = np.array_split(gray_imgs, multiprocessing.cpu_count())
     results = p.map(extract_wndchrm_feats_batch, splits)
     result = np.vstack(results)
     return result
 
 
 def save_wndchrm_feats(dataset):
-    x_train, y_train = dataset['x_train'], dataset['y_train']
-    x_test, y_test = dataset['x_test'], dataset['y_test']
-    assert x_train.max() <= 1.0
-    assert x_test.max() <= 1.0
-    x_train = (x_train * 255).astype(np.uint8)
-    x_test = (x_test * 255).astype(np.uint8)
-    x_train = extract_wndchrm_feats_parallel(x_train)
-    x_test = extract_wndchrm_feats_parallel(x_test)
+    x, y = dataset['x'], dataset['y']
+    assert x.max() <= 1.0
+    x = (x * 255).astype(np.uint8)
+    x = extract_wndchrm_feats_parallel(x)
     dataset = {
-        'x_train': x_train, 'y_train': y_train,
-        'x_test': x_test, 'y_test': y_test,
+        'x': x, 'y': y,
         'classnames': dataset['classnames']
     }
     np.savez(wndchrm_feat_file, **dataset)
@@ -85,13 +81,10 @@ def rcdt_transform(x, template):
 
 
 def save_rcdt_feats(dataset):
-    x_train, y_train = dataset['x_train'], dataset['y_train']
-    x_test, y_test = dataset['x_test'], dataset['y_test']
-    x_train = rcdt_transform_parallel(x_train)
-    x_test = rcdt_transform_parallel(x_test)
+    x, y = dataset['x'], dataset['y']
+    x = rcdt_transform_parallel(x)
     dataset = {
-        'x_train': x_train, 'y_train': y_train,
-        'x_test': x_test, 'y_test': y_test,
+        'x': x, 'y': y,
         'classnames': dataset['classnames']
     }
     np.savez(rcdt_feat_file, **dataset)
@@ -116,11 +109,7 @@ def load_images(root, target_size):
     y = np.array([classname2idex[name] for name in y])
     x = np.array(x).astype('float32')
     x = x / x.max()
-    x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.2, random_state=0)
-    return {'x_train': x_train, 'y_train': y_train,
-            'x_test': x_test, 'y_test': y_test,
-            'classnames': classnames}
-
+    return {'x': x, 'y': y, 'classnames': classnames}
 
 def vis_data(x, y):
     fig, axes = plt.subplots(nrows=5, ncols=6, figsize=(20, 20))
@@ -154,10 +143,9 @@ def load_dataset(space='raw'):
 if __name__ == '__main__':
     dataset = load_dataset(space='raw')
     print("dataset stats:")
-    print("train images {}, test iamges {}, image dimension: {}, "
-          "number classes: {}".format(dataset['x_train'].shape[0],
-                                      dataset['x_test'].shape[0],
-                                      dataset['x_train'].shape[1:],
+    print("images {}, dimension: {}, "
+          "number classes: {}".format(dataset['x'].shape[0],
+                                      dataset['x'].shape[1:],
                                       len(dataset['classnames'])))
     print("computing and saving wndchrm features...")
     save_wndchrm_feats(dataset)
