@@ -97,7 +97,7 @@ def nn_clf(model_name, dataset, args):
     opt = keras.optimizers.Adam(lr=5e-4)
     model.compile(loss='categorical_crossentropy', optimizer=opt, metrics=['accuracy'])
 
-    early_stop = EarlyStopping(monitor='acc', min_delta=0.0001, patience=5, verbose=1, mode='auto')
+    early_stop = EarlyStopping(monitor='acc', min_delta=0.0001, patience=10, verbose=1, mode='auto')
     model.fit(x_train, y_train, verbose=2, batch_size=32, epochs=100,
               validation_split=0.1, shuffle=True, callbacks=[early_stop])
 

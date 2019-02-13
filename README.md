@@ -1,48 +1,52 @@
-Dependencies
-    
-    The library requires the WND-CHARM Python API. The API could be installed by following https://github.com/wnd-charm/wnd-charm.
+# Cell Image Classification
 
-Usage
+## Dependencies
 
-    usage: main.py [-h] --space {raw,wndchrm,rcdt} --model
-                   {PLDA,KNN,RF,LR,SVM,MLP,ShallowCNN,VGG16,InceptionV3,DenseNet}
-                   [--transfer-learning] [--PCA-comps PCA_COMPS]
-                   [--PLDA-comps PLDA_COMPS] [--PLDA-alpha PLDA_ALPHA]
-                   [--SVM-kernel SVM_KERNEL] [--CV]
-    
-    P1 Cell Image Classification
-    
-    optional arguments:
-      -h, --help            show this help message and exit
-      --space {raw,wndchrm,rcdt}
-      --model {PLDA,KNN,RF,LR,SVM,MLP,ShallowCNN,VGG16,InceptionV3,DenseNet}
-      --transfer-learning   neural network use pretrained weights instead of
-                            training from scratch
-      --PCA-comps PCA_COMPS
-                            number of PCA components if use PCA
-      --PLDA-comps PLDA_COMPS
-                            number of components if use PLDA
-      --PLDA-alpha PLDA_ALPHA
-                            PLDA alpha
-      --SVM-kernel SVM_KERNEL
-      --CV                  perform cross validation
+* TensorFlow https://www.tensorflow.org/
+* Keras https://keras.io/
+* WND-CHARM Python API https://github.com/wnd-charm/wnd-charm
 
-Dataset
+## Usage
 
-    The 2D Hela Dataset (https://ome.irp.nia.nih.gov/iicbu2008/)
-    Fluorescence microscopy images of HeLa cells of 10 classes
-    860 382x382 16 bit TIFF images, of which 689 used for training and 173 for testing
-    
-Neural Netwoks Training
+```
+usage: main.py [-h] --space {raw,wndchrm,rcdt} --model
+               {RF,KNN,SVM,LR,LDA,PLDA,MLP,ShallowCNN,VGG16,InceptionV3}
+               [--transfer-learning] [--PCA-comps PCA_COMPS]
+               [--PLDA-comps PLDA_COMPS] [--PLDA-alpha PLDA_ALPHA]
+               [--SVM-kernel SVM_KERNEL]
 
-    opt = keras.optimizers.RMSprop(lr=1e-4)
-    model.compile(loss='categorical_crossentropy', optimizer=opt, metrics=['accuracy'])
+P1 Cell Image Classification
 
-    early_stop = EarlyStopping(patience=20)
-    model.fit(x_train, y_train, verbose=2, batch_size=32, epochs=500,
-              validation_split=0.1, shuffle=True, callbacks=[early_stop])
-Performances
+optional arguments:
+  -h, --help            show this help message and exit
+  --space {raw,wndchrm,rcdt}
+  --model {RF,KNN,SVM,LR,LDA,PLDA,MLP,ShallowCNN,VGG16,InceptionV3}
+  --transfer-learning   neural network use pretrained weights instead of
+                        training from scratch
+  --PCA-comps PCA_COMPS
+                        number of PCA components if use PCA
+  --PLDA-comps PLDA_COMPS
+                        number of components if use PLDA
+  --PLDA-alpha PLDA_ALPHA
+                        PLDA alpha
+  --SVM-kernel SVM_KERNEL
+```
 
+**Examples**
+
+* Train A logistic regression model on image space: `python main.py --space raw --model LR`
+
+* Train A logistic regression model on WND-CHARM feature space: `python main.py --space wndchrm --model LR`
+
+* Train InceptionV3 on image space: `python main.py --space raw --model InceptionV3`
+
+* Train InceptionV3 on image space by fine-tuning a pre-trained model (transfer learning): `python main.py --space image --model InceptionV3 --transfer-learning`
+
+## Dataset 
+The 2D Hela Dataset (https://ome.irp.nia.nih.gov/iicbu2008/) Fluorescence microscopy images of HeLa cells of 10 classes 860 382x382 16 bit TIFF images, of which 689 used for training and 173 for testing.
+
+## Performances
+```
     VGG16 transfer learning:
     Epoch 26/500
      - 8s - loss: 3.7375e-05 - acc: 1.0000 - val_loss: 0.9353 - val_acc: 0.8116
@@ -58,7 +62,4 @@ Performances
     Logistic Regression using wndchrm features:
     train accuracy: 1.0
     test accuracy: 0.9190751445086706
-        
-
-        
-        
+```
