@@ -10,7 +10,7 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.decomposition import PCA
 from sklearn.preprocessing import StandardScaler
 from optimaltransport.optrans.decomposition import PLDA
-from sklearn.model_selection import StratifiedKFold, cross_val_score, train_test_split
+from sklearn.model_selection import StratifiedKFold, cross_val_score, train_test_split, GridSearchCV
 from sklearn.pipeline import make_pipeline
 
 
@@ -112,14 +112,26 @@ def sklearn_clf(model_name, dataset, args):
         'LR': LogisticRegression(random_state=0, solver='lbfgs', class_weight='balanced', multi_class='ovr'),
         'KNN': KNeighborsClassifier(),
         'SVM': SVC(kernel=args.SVM_kernel, class_weight='balanced', probability=True, decision_function_shape='ovr'),
-        'PLDA': PLDA(args.PLDA_alpha, args.PLDA_comps),
-        'LDA': PLDA(args.PLDA_alpha)
+        'PLDA': PLDA(),
+        'LDA': PLDA(alpha=0.001)
+    }[model_name]
+
+    param_grid = {
+        'RF': {}, 'KNN': {}, 'PLDA': {}, 'LDA': {},
+        'LR': {'logisticregression__C': np.logspace(-4, 4, 9)},
+        'SVM': {'svc__C': np.logspace(-2, 6, 9), 'svc__gamma': np.logspace(-4, 3, 8)}
     }[model_name]
 
     x, y = dataset['x'], dataset['y']
     x = np.reshape(x, (x.shape[0], -1))
     cv = StratifiedKFold(n_splits=10, shuffle=True)
 
-    pipeline_clf = make_pipeline(StandardScaler(), PCA(args.PCA_comps), clf)
-    scores = cross_val_score(pipeline_clf, x, y, cv=cv, n_jobs=-1)  # n_jobs=-1 to use all processors
-    print("10-fold cross validation accuracy: %0.2f (+/- %0.2f)" % (scores.mean(), scores.std() * 2))
+    pipeline_clf = make_pipeline(StandardScaler(), PCA(min(x.shape[0], x.shape[1])), clf)
+
+    print("training ...")
+    search = GridSearchCV(pipeline_clf, param_grid, cv=cv, n_jobs=-1)
+    search.fit(x, y)
+    print("Best parameter (CV score=%0.3f):" % search.best_score_)
+    print(search.best_params_)
+    # scores = cross_val_score(pipeline_clf, x, y, cv=cv, n_jobs=-1)  # n_jobs=-1 to use all processors
+    # print("10-fold cross validation accuracy: %0.2f (+/- %0.2f)" % (scores.mean(), scores.std() * 2))

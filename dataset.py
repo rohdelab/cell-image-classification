@@ -16,9 +16,10 @@ from sklearn.decomposition import PCA
 
 # image_target_size = 224  # original size 382x382
 image_target_size = (447, 382)  # width, height
-image_dir = 'data/preprocessed'
-wndchrm_feat_file = 'data/hela_wndchrm_feats{}.npz'.format(*image_target_size)
-rcdt_feat_file = 'data/hela_rcdt_feats{}.npz'.format(*image_target_size)
+# image_target_size = (224, 224)  # width, height
+image_dir = 'data/hela'
+wndchrm_feat_file = os.path.join(image_dir, 'hela_wndchrm_feats{}.npz'.format(*image_target_size))
+rcdt_feat_file = os.path.join(image_dir, 'hela_rcdt_feats{}.npz'.format(*image_target_size))
 
 def extract_wndchrm_feats(gray_img):
     # grayscale image
@@ -128,7 +129,7 @@ def load_dataset(space='raw'):
         print('loaded raw images')
     elif space == 'wndchrm':
         if not os.path.isfile(wndchrm_feat_file):
-            print('precomputed RCDT features not found, computing and saving {}...'.format(wndchrm_feat_file))
+            print('precomputed wndchrm features not found, computing and saving {}...'.format(wndchrm_feat_file))
             save_wndchrm_feats(load_images(image_dir, target_size=image_target_size))
         dataset = np.load(wndchrm_feat_file)
         print('loaded wndchrm features')
@@ -139,6 +140,20 @@ def load_dataset(space='raw'):
         dataset = np.load(rcdt_feat_file)
         print('loaded RCDT features')
     return dataset
+
+
+def load_dataset_reproduce(space='raw'):
+    from scipy.io import loadmat
+    data_space = {'raw': 'raw1', 'wndchrm': 'wnd', 'rcdt': 'rcdt'}[space]
+    prefix = {'raw': 'I', 'wndchrm': 'W', 'rcdt': 'R'}[space]
+    datadir = 'data/Shifat_data/data1'
+    y = loadmat(os.path.join(datadir, 'labels'))
+    y = np.squeeze(y['label'])
+    datadir = os.path.join(datadir, data_space, 'bcls')
+    x = []
+    for i in range(y.size):
+        x.append(loadmat('{}/{}{}.mat'.format(datadir, prefix, i + 1))['xx'])
+    return {'x': np.array(x), 'y': y}
 
 
 if __name__ == '__main__':

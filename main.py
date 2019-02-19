@@ -10,10 +10,10 @@ parser.add_argument('--model', choices=sklearn_models+neural_network_models, req
 parser.add_argument("--transfer-learning",
                     help='neural network use pretrained weights instead of training from scratch',
                     action='store_true')
-parser.add_argument("--PCA-comps", type=int, default=128, help='number of PCA components if use PCA')
-parser.add_argument("--PLDA-comps", type=int, default=100, help='number of components if use PLDA')
-parser.add_argument("--PLDA-alpha", type=float, default=0.001, help='PLDA alpha')
 parser.add_argument("--SVM-kernel", type=str, default='linear')
+parser.add_argument("--reproduce",
+                    help='reproduce the results reported in the paper',
+                    action='store_true')
 
 if __name__ == '__main__':
     args = parser.parse_args()
@@ -21,7 +21,10 @@ if __name__ == '__main__':
         raise ValueError("not able to use {} on {}".format(args.model, args.space))
 
     print("classification on {} space using {}...".format(args.space, args.model))
-    dataset = load_dataset(args.space)
+    if args.reproduce:
+        dataset = load_dataset_reproduce(args.space)
+    else:
+        dataset = load_dataset(args.space)
 
     if args.model in neural_network_models:
         nn_clf(args.model, dataset, args)
