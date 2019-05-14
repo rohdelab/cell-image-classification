@@ -43,4 +43,4 @@ optional arguments:
 
 **Reproduce Hela Results**
 
-We provide the data used for producing the Hela results as reported in the paper. The preprocessed data is  located in `data/hela_reproduce`. To reproduce the results, for example, using PLDA and wndchrm features, simple run `python main.py --dataset hela --space wndchrm --model PLDA --reproduce`.
+We provide the data used for producing the Hela results as reported in the paper. The preprocessed data is  located in `data/hela_reproduce`. To reproduce the results, add the `--reproduce` flag to commands (this will load the propressed data). For example, to reproduce PLDA classification on wndchrm features result, run `python main.py --dataset hela --space wndchrm --model PLDA --reproduce`.
