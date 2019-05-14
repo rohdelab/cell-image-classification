@@ -29,11 +29,11 @@ optional arguments:
 
 **Examples**
 
-* Train A logistic regression model on image space: `python main.py --space raw --model LR`
+* Train A logistic regression model on image space: `python main.py --space image --model LR`
 
 * Train A logistic regression model on WND-CHARM feature space: `python main.py --space wndchrm --model LR`
 
-* Train InceptionV3 on image space: `python main.py --space raw --model InceptionV3`
+* Train InceptionV3 on image space: `python main.py --space image --model InceptionV3`
 
 * Train InceptionV3 on image space by fine-tuning a pre-trained model (transfer learning): `python main.py --space image --model InceptionV3 --transfer-learning`
 

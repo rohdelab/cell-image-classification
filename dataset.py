@@ -15,13 +15,11 @@ from itertools import zip_longest
 from sklearn.decomposition import PCA
 
 # image_target_size = 224  # original size 382x382
-image_target_size = (447, 382)  # width, height
-# image_target_size = (224, 224)  # width, height
-image_dir = 'data/hela'
-wndchrm_feat_file = os.path.join(image_dir, 'hela_wndchrm_feats{}.npz'.format(*image_target_size))
-rcdt_feat_file = os.path.join(image_dir, 'hela_rcdt_feats{}.npz'.format(*image_target_size))
+# image_target_size = (447, 382)  # width, height
+image_target_size = (224, 224)  # width, height
 
-def extract_wndchrm_feats(gray_img):
+
+def extract_wndchrm_feats_single(gray_img):
     # grayscale image
     assert gray_img.ndim == 2
     matrix = PyImageMatrix()
@@ -34,11 +32,11 @@ def extract_wndchrm_feats(gray_img):
 
 
 def extract_wndchrm_feats_batch(gray_imgs):
-    batch_feats = [extract_wndchrm_feats(im) for im in gray_imgs]
+    batch_feats = [extract_wndchrm_feats_single(im) for im in gray_imgs]
     return np.array(batch_feats)
 
 
-def extract_wndchrm_feats_parallel(gray_imgs):
+def extract_wndchrm_feats(gray_imgs):
     import multiprocessing
     p = multiprocessing.Pool(multiprocessing.cpu_count())
     splits = np.array_split(gray_imgs, multiprocessing.cpu_count())
@@ -47,31 +45,31 @@ def extract_wndchrm_feats_parallel(gray_imgs):
     return result
 
 
-def save_wndchrm_feats(dataset):
+def save_wndchrm_feats(dataset, filename):
     x, y = dataset['x'], dataset['y']
     assert x.max() <= 1.0
     x = (x * 255).astype(np.uint8)
-    x = extract_wndchrm_feats_parallel(x)
+    x = extract_wndchrm_feats(x)
     dataset = {
         'x': x, 'y': y,
         'classnames': dataset['classnames']
     }
-    np.savez(wndchrm_feat_file, **dataset)
+    np.savez(filename, **dataset)
 
 
-def rcdt_transform_parallel(x, template=None, nprocesses=40):
+def rcdt_transform(x, template=None, nprocesses=40):
     from multiprocessing import Pool
     p = Pool(nprocesses)
     splits = np.array_split(x, nprocesses)
     if template is None:
         template = np.ones(x.shape[1:]).astype('float32')
         template = template / template.sum()
-    results = p.starmap(rcdt_transform, zip_longest(splits, [template], fillvalue=template))
+    results = p.starmap(rcdt_transform_single, zip_longest(splits, [template], fillvalue=template))
     result = np.vstack(results)
     return result
 
 
-def rcdt_transform(x, template):
+def rcdt_transform_single(x, template):
     x_trans = []
     for i in range(x.shape[0]):
         img = signal_to_pdf(x[i])
@@ -82,14 +80,14 @@ def rcdt_transform(x, template):
     return x_trans
 
 
-def save_rcdt_feats(dataset):
+def save_rcdt_feats(dataset, filename):
     x, y = dataset['x'], dataset['y']
-    x = rcdt_transform_parallel(x)
+    x = rcdt_transform(x)
     dataset = {
         'x': x, 'y': y,
         'classnames': dataset['classnames']
     }
-    np.savez(rcdt_feat_file, **dataset)
+    np.savez(filename, **dataset)
 
 
 def load_images(root, target_size):
@@ -123,30 +121,40 @@ def vis_data(x, y):
     plt.show()
 
 
-def load_dataset(space='raw'):
-    if space == 'raw':
+def load_dataset(dataset, space='image'):
+    image_dir = os.path.join('data', dataset)
+    if not os.path.isdir(image_dir):
+        raise ValueError('Directory "{}" does not exit'.format(image_dir))
+
+    wndchrm_feat_file = os.path.join(image_dir, '{}_wndchrm_feats{}.npz'.format(dataset, *image_target_size))
+    rcdt_feat_file = os.path.join(image_dir, '{}_rcdt_feats{}.npz'.format(dataset, *image_target_size))
+
+    if space == 'image':
         dataset = load_images(image_dir, target_size=image_target_size)
         print('loaded raw images')
     elif space == 'wndchrm':
         if not os.path.isfile(wndchrm_feat_file):
             print('precomputed wndchrm features not found, computing and saving {}...'.format(wndchrm_feat_file))
-            save_wndchrm_feats(load_images(image_dir, target_size=image_target_size))
+            save_wndchrm_feats(load_images(image_dir, target_size=image_target_size), wndchrm_feat_file)
         dataset = np.load(wndchrm_feat_file)
         print('loaded wndchrm features')
     elif space == 'rcdt':
         if not os.path.isfile(rcdt_feat_file):
             print('precomputed RCDT features not found, computing and saving {}...'.format(rcdt_feat_file))
-            save_rcdt_feats(load_images(image_dir, target_size=image_target_size))
+            save_rcdt_feats(load_images(image_dir, target_size=image_target_size), rcdt_feat_file)
         dataset = np.load(rcdt_feat_file)
         print('loaded RCDT features')
+
     return dataset
 
 
-def load_dataset_reproduce(space='raw'):
+def load_dataset_reproduce(dataset, space='image'):
+    if dataset != 'hela':
+        raise ValueError('Reproduction of experimental results only support Hela dataset')
     from scipy.io import loadmat
-    data_space = {'raw': 'raw1', 'wndchrm': 'wnd', 'rcdt': 'rcdt'}[space]
-    prefix = {'raw': 'I', 'wndchrm': 'W', 'rcdt': 'R'}[space]
-    datadir = 'data/Shifat_data/data1'
+    data_space = {'image': 'raw1', 'wndchrm': 'wnd', 'rcdt': 'rcdt'}[space]
+    prefix = {'image': 'I', 'wndchrm': 'W', 'rcdt': 'R'}[space]
+    datadir = 'data/hela_reproduce/data1'
     y = loadmat(os.path.join(datadir, 'labels'))
     y = np.squeeze(y['label'])
     datadir = os.path.join(datadir, data_space, 'bcls')
@@ -157,15 +165,16 @@ def load_dataset_reproduce(space='raw'):
 
 
 if __name__ == '__main__':
-    dataset = load_dataset(space='raw')
+    dataset = load_dataset(dataset='hela', space='image')
     print("dataset stats:")
     print("images {}, dimension: {}, "
           "number classes: {}".format(dataset['x'].shape[0],
                                       dataset['x'].shape[1:],
                                       len(dataset['classnames'])))
     print("classes: {}".format(dataset['classnames']))
-    print("computing and saving wndchrm features...")
-    save_wndchrm_feats(dataset)
-    print("computing and saving RCDT transform...")
-    save_rcdt_feats(dataset)
+
+    dataset = load_dataset(dataset='hela', space='wndchrm')
+
+    dataset = load_dataset(dataset='hela', space='rcdt')
+
 
