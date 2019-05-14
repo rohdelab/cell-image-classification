@@ -15,12 +15,12 @@ from sklearn.pipeline import make_pipeline
 
 
 def build_model(model_name, input_shape, num_classes, transfer_learning):
-    from keras.layers import Dense, Dropout, Activation, Flatten, GlobalAveragePooling2D, Conv2D, MaxPooling2D, BatchNormalization
-    from keras.models import Sequential
-    from keras.applications import densenet
-    from keras.applications import vgg16
-    from keras.applications import InceptionV3
-    from keras.models import Model
+    from tensorflow.keras.layers import Dense, Dropout, Activation, Flatten, GlobalAveragePooling2D, Conv2D, MaxPooling2D, BatchNormalization
+    from tensorflow.keras.models import Sequential
+    from tensorflow.keras.applications import densenet
+    from tensorflow.keras.applications import vgg16
+    from tensorflow.keras.applications import InceptionV3
+    from tensorflow.keras.models import Model
 
     weights = 'imagenet' if transfer_learning else None
     if model_name == 'MLP':
@@ -62,12 +62,13 @@ def build_model(model_name, input_shape, num_classes, transfer_learning):
 
 
 def nn_clf(model_name, dataset, args):
-    import keras
-    from keras.callbacks import EarlyStopping
+    import tensorflow as tf
     x, y = dataset['x'], dataset['y']
     # x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.1, shuffle=True, stratify=y)
     cv = StratifiedKFold(n_splits=10, shuffle=True)
+    acc = []
     for split, (train_idx, test_idx) in enumerate(cv.split(np.zeros(y.shape[0]), y)):
+        print('training on split {}'.format(split))
         x_train, y_train = x[train_idx], y[train_idx]
         x_test, y_test = x[test_idx], y[test_idx]
 
@@ -77,7 +78,7 @@ def nn_clf(model_name, dataset, args):
         scaler = StandardScaler()
         x_train = scaler.fit_transform(x_train)
         x_test = scaler.transform(x_test)
-        
+
         if model_name != 'MLP':
             x_train = np.reshape(x_train, [-1, *input_shape])
             x_test = np.reshape(x_test, [-1, *input_shape])
@@ -88,10 +89,27 @@ def nn_clf(model_name, dataset, args):
                 assert x_train.ndim == 4
                 assert x_train.shape[-1] == 3
 
-        classnames = dataset['classnames']
+        batch_size = 32
+        if model_name == 'MLP':
+            lr = 0.00001
+        elif model_name == 'ShallowCNN':
+            lr = 0.0005
+        elif model_name == 'VGG16':
+            lr = 0.00001
+            batch_size = 16
+        elif model_name == 'InceptionV3':
+            lr = 0.00001
+            batch_size = 8
+        else:
+            lr = 5e-4
 
-        y_train = keras.utils.to_categorical(y_train, num_classes=len(classnames))
-        y_test = keras.utils.to_categorical(y_test, num_classes=len(classnames))
+        if 'classnames' in dataset:
+            classnames = dataset['classnames']
+        else:
+            classnames = list(map(str, sorted(list(set(dataset['y'])))))
+
+        y_train = tf.keras.utils.to_categorical(y_train, num_classes=len(classnames))
+        y_test = tf.keras.utils.to_categorical(y_test, num_classes=len(classnames))
 
         if args.transfer_learning and model_name in ['VGG16', 'InceptionV3']:
             print("using pretrained weights {}".format(model_name))
@@ -100,16 +118,18 @@ def nn_clf(model_name, dataset, args):
 
         model = build_model(model_name, x_train.shape[1:], len(classnames), args.transfer_learning)
 
-        opt = keras.optimizers.Adam(lr=5e-4)
+        opt = tf.keras.optimizers.Adam(lr=lr)
         model.compile(loss='categorical_crossentropy', optimizer=opt, metrics=['accuracy'])
 
-        early_stop = EarlyStopping(monitor='acc', min_delta=0.0001, patience=10, verbose=1, mode='auto')
-        model.fit(x_train, y_train, verbose=2, batch_size=32, epochs=100,
+        early_stop = tf.keras.callbacks.EarlyStopping(monitor='acc', min_delta=0.0001, patience=5, verbose=1, mode='auto')
+        model.fit(x_train, y_train, verbose=2, batch_size=batch_size, epochs=100,
                   validation_split=0.1, shuffle=True, callbacks=[early_stop])
 
         _, train_acc = model.evaluate(x_train, y_train)
         _, test_acc = model.evaluate(x_test, y_test)
-        print("split {}, train accuracy: {}, test accuracy {}".format(split, train_acc, test_acc))
+        acc.append(test_acc)
+        print("split {}, train accuracy: {}, test accuracy {}, running test accuracy {}".format(split, train_acc, test_acc, np.mean(acc)))
+    print("10-fold cross validation accuracy: {:.4f} (+/- {:.4f})".format(np.mean(acc), np.std(acc)))
 
 
 def sklearn_clf(model_name, dataset, args):
