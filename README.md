@@ -11,7 +11,7 @@ Code for training and testing of a set of statistical machine learning models on
 
 ## Usage
 
-```python
+```
 usage: main.py [-h] [--dataset DATASET] --space {image,wndchrm,rcdt} --model
                {RF,KNN,SVM,LR,LDA,PLDA,MLP,ShallowCNN,VGG16,InceptionV3}
                [--transfer-learning] [--SVM-kernel {rbf,linear}] [--reproduce]
