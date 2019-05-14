@@ -13,7 +13,7 @@ parser.add_argument("--transfer-learning",
                     action='store_true')
 parser.add_argument("--SVM-kernel", type=str, choices=['rbf', 'linear'], default='linear')
 parser.add_argument("--reproduce",
-                    help='reproduce the results reported in the paper',
+                    help='reproduce the results on Hela dataset reported in the paper',
                     action='store_true')
 
 if __name__ == '__main__':
