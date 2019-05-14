@@ -8,6 +8,7 @@ Code for training and testing of a set of statistical machine learning models on
 * Keras https://keras.io/
 * WND-CHARM, and its Python API https://github.com/wnd-charm/wnd-charm
 * scikit-learn 0.18.1 <https://scikit-learn.org/stable/>
+* Liam's optimal transport library (https://github.com/LiamCattell/optimaltransport)
 
 ## Usage
 
