@@ -5,7 +5,7 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import classification_report
 from sklearn.metrics import confusion_matrix
 from sklearn.neighbors import KNeighborsClassifier
-from sklearn.svm import SVC
+from sklearn.svm import SVC, LinearSVC
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.decomposition import PCA
 from sklearn.preprocessing import StandardScaler
@@ -23,6 +23,7 @@ def build_model(model_name, input_shape, num_classes, transfer_learning):
     from tensorflow.keras.models import Model
 
     weights = 'imagenet' if transfer_learning else None
+    base_model = None
     if model_name == 'MLP':
         model = Sequential()
         model.add(Dense(1024, activation='relu', input_shape=input_shape))
@@ -58,7 +59,7 @@ def build_model(model_name, input_shape, num_classes, transfer_learning):
         predictions = Dense(num_classes, activation="softmax")(x)
         model = Model(inputs=model.input, outputs=predictions)
 
-    return model
+    return base_model, model
 
 
 def nn_clf(model_name, dataset, args):
@@ -75,9 +76,9 @@ def nn_clf(model_name, dataset, args):
         input_shape = x_train.shape[1:]
         x_train = np.reshape(x_train, (x_train.shape[0], -1))
         x_test = np.reshape(x_test, (x_test.shape[0], -1))
-        scaler = StandardScaler()
-        x_train = scaler.fit_transform(x_train)
-        x_test = scaler.transform(x_test)
+        # scaler = StandardScaler()
+        # x_train = scaler.fit_transform(x_train)
+        # x_test = scaler.transform(x_test)
 
         if model_name != 'MLP':
             x_train = np.reshape(x_train, [-1, *input_shape])
@@ -116,14 +117,25 @@ def nn_clf(model_name, dataset, args):
         else:
             print("training {} from scratch...".format(model_name))
 
-        model = build_model(model_name, x_train.shape[1:], len(classnames), args.transfer_learning)
+        base_model, model = build_model(model_name, x_train.shape[1:], len(classnames), args.transfer_learning)
 
-        opt = tf.keras.optimizers.Adam(lr=lr)
-        model.compile(loss='categorical_crossentropy', optimizer=opt, metrics=['accuracy'])
+        def optimize(lr):
+            opt = tf.keras.optimizers.Adam(lr=lr)
+            model.compile(loss='categorical_crossentropy', optimizer=opt, metrics=['accuracy'])
 
-        early_stop = tf.keras.callbacks.EarlyStopping(monitor='acc', min_delta=0.0001, patience=5, verbose=1, mode='auto')
-        model.fit(x_train, y_train, verbose=2, batch_size=batch_size, epochs=100,
-                  validation_split=0.1, shuffle=True, callbacks=[early_stop])
+            early_stop = tf.keras.callbacks.EarlyStopping(monitor='acc', min_delta=0.0001, patience=5, verbose=1, mode='auto')
+            model.fit(x_train, y_train, verbose=2, batch_size=batch_size, epochs=100,
+                      validation_split=0.1, callbacks=[early_stop])
+
+        if args.transfer_learning and base_model is not None:
+            for layer in base_model.layers:
+                layer.trainable = False
+            optimize(lr)
+            for layer in base_model.layers:
+                layer.trainable = True
+            optimize(lr/10.)
+        else:
+            optimize(lr)
 
         _, train_acc = model.evaluate(x_train, y_train)
         _, test_acc = model.evaluate(x_test, y_test)
@@ -133,11 +145,14 @@ def nn_clf(model_name, dataset, args):
 
 
 def sklearn_clf(model_name, dataset, args):
+    if 'SVM' in model_name:
+        model_name = 'SVM-L' if args.SVM_kernel == 'linear' else 'SVM-K'
     clf = {
         'RF': RandomForestClassifier(),
         'LR': LogisticRegression(random_state=0, solver='lbfgs', class_weight='balanced', multi_class='ovr'),
         'KNN': KNeighborsClassifier(),
-        'SVM': SVC(kernel=args.SVM_kernel, class_weight='balanced', probability=True, decision_function_shape='ovr'),
+        'SVM-L': LinearSVC(),
+        'SVM-K': SVC(kernel=args.SVM_kernel, class_weight='balanced', probability=True, decision_function_shape='ovr'),
         'PLDA': PLDA(),
         'LDA': PLDA(alpha=0.001)
     }[model_name]
@@ -145,7 +160,8 @@ def sklearn_clf(model_name, dataset, args):
     param_grid = {
         'RF': {}, 'KNN': {}, 'PLDA': {}, 'LDA': {},
         'LR': {'logisticregression__C': np.logspace(-4, 4, 9)},
-        'SVM': {'svc__C': np.logspace(-2, 6, 9), 'svc__gamma': np.logspace(-4, 3, 8)}
+        'SVM-L': {},
+        'SVM-K': {'svc__C': np.logspace(-2, 6, 9), 'svc__gamma': np.logspace(-4, 3, 8)}
     }[model_name]
 
     x, y = dataset['x'], dataset['y']

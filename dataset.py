@@ -13,6 +13,7 @@ from optimaltransport.optrans.continuous import RadonCDT
 from optimaltransport.optrans.utils import signal_to_pdf
 from itertools import zip_longest
 from sklearn.decomposition import PCA
+from skimage.transform import resize
 
 # image_target_size = 224  # original size 382x382
 # image_target_size = (447, 382)  # width, height
@@ -160,7 +161,15 @@ def load_dataset_reproduce(dataset, space='image'):
     datadir = os.path.join(datadir, data_space, 'bcls')
     x = []
     for i in range(y.size):
-        x.append(loadmat('{}/{}{}.mat'.format(datadir, prefix, i + 1))['xx'])
+        data = loadmat('{}/{}{}.mat'.format(datadir, prefix, i + 1))['xx']
+        if space == 'image':
+            data = resize(data, (256, 256))
+            data = data * 255 / data.max()
+        x.append(data)
+    x = np.array(x)
+    rand_index = np.random.permutation(x.shape[0])
+    x = x[rand_index]
+    y = y[rand_index]
     return {'x': np.array(x), 'y': y}
 
 
