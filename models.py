@@ -173,6 +173,15 @@ def sklearn_clf(model_name, dataset, args):
     print("training ...")
     search = GridSearchCV(pipeline_clf, param_grid, cv=cv, n_jobs=-1)
     search.fit(x, y)
+
+    estimator = search.best_estimator_
+
+    confs = []
+    for split, (train_idx, test_idx) in enumerate(cv.split(np.zeros(y.shape[0]), y)):
+        x_test, y_test = x[test_idx], y[test_idx]
+        y_pred = estimator.predict(x_test)
+        confs.append(confusion_matrix(y_test, y_pred))
+
     print("Best parameter (CV score=%0.3f):" % search.best_score_)
     print(search.best_params_)
     # scores = cross_val_score(pipeline_clf, x, y, cv=cv, n_jobs=-1)  # n_jobs=-1 to use all processors
