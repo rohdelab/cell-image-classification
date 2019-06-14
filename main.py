@@ -12,7 +12,7 @@ parser.add_argument("--transfer-learning",
                     help='neural network use pretrained weights instead of training from scratch',
                     action='store_true')
 parser.add_argument("--SVM-kernel", type=str, choices=['rbf', 'linear'], default='linear')
-parser.add_argument("--reproduce",
+parser.add_argument("--preprocessed",
                     help='reproduce the results on Hela dataset reported in the paper',
                     action='store_true')
 
@@ -22,7 +22,7 @@ if __name__ == '__main__':
         raise ValueError("not able to use {} on {}".format(args.model, args.space))
 
     print("classification on {} space using {}...".format(args.space, args.model))
-    if args.reproduce:
+    if args.preprocessed:
         dataset = load_dataset_reproduce(args.dataset, args.space)
     else:
         dataset = load_dataset(args.dataset, args.space)

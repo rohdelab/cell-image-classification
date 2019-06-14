@@ -153,9 +153,9 @@ def load_dataset_reproduce(dataset, space='image'):
     if dataset != 'hela':
         raise ValueError('Reproduction of experimental results only support Hela dataset')
     from scipy.io import loadmat
-    data_space = {'image': 'raw1', 'wndchrm': 'wnd', 'rcdt': 'rcdt'}[space]
+    data_space = {'image': 'image', 'wndchrm': 'wnd', 'rcdt': 'rcdt'}[space]
     prefix = {'image': 'I', 'wndchrm': 'W', 'rcdt': 'R'}[space]
-    datadir = 'data/hela_reproduce/data1'
+    datadir = 'data/hela_preprocessed'
     y = loadmat(os.path.join(datadir, 'labels'))
     y = np.squeeze(y['label'])
     datadir = os.path.join(datadir, data_space, 'bcls')
