@@ -5,13 +5,13 @@ Code for training and testing of a set of statistical machine learning models on
 ## Dependencies
 
 * TensorFlow 1.13.1 https://www.tensorflow.org/
-* Keras https://keras.io/
 * WND-CHARM, and its Python API https://github.com/wnd-charm/wnd-charm
 * scikit-learn 0.18.1 <https://scikit-learn.org/stable/>
+* Optimal transport library (https://github.com/LiamCattell/optimaltransport)
 
 ## Usage
 
-```python
+```
 usage: main.py [-h] [--dataset DATASET] --space {image,wndchrm,rcdt} --model
                {RF,KNN,SVM,LR,LDA,PLDA,MLP,ShallowCNN,VGG16,InceptionV3}
                [--transfer-learning] [--SVM-kernel {rbf,linear}] [--preprocessed]
@@ -42,4 +42,4 @@ optional arguments:
 
 **Reproduce Hela Results**
 
-We provide the data used for producing the Hela results as reported in the paper. The preprocessed data is  located in `data/hela_preprocessed`. To reproduce the results, for example, using PLDA and wndchrm features, simple run `python main.py --dataset hela --space wndchrm --model PLDA --preprocessed`.
+We provide the data used for producing the Hela results as reported in the paper. The preprocessed data is  located in `data/hela_preprocessed`. To reproduce the results, add the `--preprocessed` flag to commands (this will load the propressed data). For example, to reproduce PLDA classification on wndchrm features result, run `python main.py --dataset hela --space wndchrm --model PLDA --preprocessed`.
