@@ -21,6 +21,7 @@ parser.add_argument("--preprocessed",
                     action='store_true')
 
 if __name__ == '__main__':
+    np.random.seed(123)
     args = parser.parse_args()
     if args.space == 'wndchrm' and args.model in ['ShallowCNN', 'VGG16', 'InceptionV3']:
         raise ValueError("not able to use {} on {}".format(args.model, args.space))
