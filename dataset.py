@@ -99,7 +99,7 @@ def load_images(root, target_size):
             try:
                 img = Image.open(img_path)
                 if img.size != target_size:
-                    img = img.resize(target_size)
+                    img = img.resize(target_size, mode='reflect', anti_aliasing=True)
                 x.append(np.asarray(img))
                 y.append(path.split('/')[-1])
             except IOError:
@@ -165,7 +165,7 @@ def load_dataset_preprocessed(dataset, space='image'):
     for i in range(y.size):
         data = loadmat('{}/{}{}.mat'.format(datadir, prefix, i + 1))['xx']
         if space == 'image':
-            data = resize(data, (256, 256))
+            data = resize(data, (256, 256), mode='reflect', anti_aliasing=True)
             data = data * 255 / data.max()
         x.append(data)
     x = np.array(x)

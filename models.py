@@ -1,5 +1,6 @@
 import sys
 sys.path.append('optimaltransport')
+import os
 import numpy as np
 from pathlib import Path
 from sklearn.linear_model import LogisticRegression
@@ -72,6 +73,7 @@ def build_model(model_name, input_shape, num_classes, transfer_learning):
 
 def nn_clf(model_name, dataset, args):
     import tensorflow as tf
+    os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
     from tensorflow.keras.preprocessing.image import ImageDataGenerator
     x, y = dataset['x'], dataset['y']
     # x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.1, shuffle=True, stratify=y)
@@ -82,7 +84,7 @@ def nn_clf(model_name, dataset, args):
         x_train, y_train = x[train_idx], y[train_idx]
         x_test, y_test = x[test_idx], y[test_idx]
 
-        print('training on split {}, training samples {}, test samples {}'.format(split, x_train.shape[0], x_test.shape[0]))
+        print('============ training on split {}, training samples {}, test samples {}'.format(split, x_train.shape[0], x_test.shape[0]))
 
         input_shape = x_train.shape[1:]
         x_train = np.reshape(x_train, (x_train.shape[0], -1))
@@ -153,14 +155,14 @@ def nn_clf(model_name, dataset, args):
             opt = tf.keras.optimizers.Adam(lr=lr)
             model.compile(loss='categorical_crossentropy', optimizer=opt, metrics=['accuracy'])
 
-            early_stop = tf.keras.callbacks.EarlyStopping(monitor='acc', min_delta=0.0001, patience=5, verbose=1, mode='auto')
+            early_stop = tf.keras.callbacks.EarlyStopping(monitor='acc', min_delta=0.0001, patience=5, verbose=2, mode='auto')
             if args.data_augmentation:
               # fits the model on batches with real-time data augmentation:
               model.fit_generator(datagen.flow(x_train, y_train, batch_size=batch_size), verbose=2,
                                   steps_per_epoch=len(x_train) / batch_size, epochs=100, 
                                   validation_data=(x_train_val, y_train_val), callbacks=[early_stop])
             else:
-              model.fit(x_train, y_train, verbose=2, batch_size=batch_size, epochs=1,
+              model.fit(x_train, y_train, verbose=2, batch_size=batch_size, epochs=100,
                         validation_split=validation_split, callbacks=[early_stop])
 
         if args.transfer_learning:
@@ -175,8 +177,8 @@ def nn_clf(model_name, dataset, args):
         else:
             optimize(lr)
 
-        _, train_acc = model.evaluate(x_train, y_train)
-        _, test_acc = model.evaluate(x_test, y_test)
+        _, train_acc = model.evaluate(x_train, y_train, verbose=0)
+        _, test_acc = model.evaluate(x_test, y_test, verbose=0)
         acc.append(test_acc)
         y_pred = np.argmax(model.predict(x_test), 1)
         confs.append(confusion_matrix(np.argmax(y_test, 1), y_pred))
