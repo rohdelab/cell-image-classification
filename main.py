@@ -25,6 +25,8 @@ if __name__ == '__main__':
     args = parser.parse_args()
     if args.space == 'wndchrm' and args.model in ['ShallowCNN', 'VGG16', 'InceptionV3']:
         raise ValueError("not able to use {} on {}".format(args.model, args.space))
+    if args.model in ['ShallowCNN', 'MLP'] and args.transfer_learning:
+        raise ValueError('{} does not support transfer learning'.format(args.model))
 
     print("classification on {} space using {}...".format(args.space, args.model))
     if args.preprocessed:
