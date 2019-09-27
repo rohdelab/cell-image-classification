@@ -7,8 +7,6 @@ import os
 from PIL import Image
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
-from wndcharm.FeatureVector import FeatureVector
-from wndcharm.PyImageMatrix import PyImageMatrix
 from optimaltransport.optrans.continuous import RadonCDT
 from optimaltransport.optrans.utils import signal_to_pdf
 from itertools import zip_longest
@@ -135,6 +133,8 @@ def load_dataset(dataset, space='image', image_size=(256, 256)):
         dataset = load_images(image_dir, target_size=image_size)
         print('loaded raw images')
     elif space == 'wndchrm':
+        from wndcharm.FeatureVector import FeatureVector
+        from wndcharm.PyImageMatrix import PyImageMatrix
         if not os.path.isfile(wndchrm_feat_file):
             print('precomputed wndchrm features not found, computing and saving {}...'.format(wndchrm_feat_file))
             save_wndchrm_feats(load_images(image_dir, target_size=image_size), wndchrm_feat_file)
