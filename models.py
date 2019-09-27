@@ -133,8 +133,8 @@ def nn_clf(model_name, dataset, args):
           x_train_val, y_train_val = x_train[-val_samples:], y_train[-val_samples:]
           print('split training samples {}, validation samples {}'.format(x_train.shape[0], x_train_val.shape[0]))
           datagen = ImageDataGenerator(
-              featurewise_center=True,
-              featurewise_std_normalization=True,
+              #featurewise_center=True,
+              #featurewise_std_normalization=True,
               rotation_range=20,
               width_shift_range=0.2,
               height_shift_range=0.2,
@@ -180,6 +180,8 @@ def nn_clf(model_name, dataset, args):
         acc.append(test_acc)
         y_pred = np.argmax(model.predict(x_test), 1)
         confs.append(confusion_matrix(np.argmax(y_test, 1), y_pred))
+        print('running confusion matrix:')
+        print(np.stack(confs, 0).mean(axis=0))
         print("split {}, train accuracy: {}, test accuracy {}, running test accuracy {}".format(split, train_acc, test_acc, np.mean(acc)))
         Path('checkpoints/{}/{}'.format(args.dataset, args.model)).mkdir(parents=True, exist_ok=True)
         model.save('checkpoints/{}/{}/model_T{}U{}split{}.h5'.format(args.dataset, args.model, int(args.transfer_learning), int(args.data_augmentation), split))
