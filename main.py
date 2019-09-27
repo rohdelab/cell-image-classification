@@ -3,7 +3,7 @@ from models import *
 from dataset import *
 
 sklearn_models = ['RF', 'KNN', 'SVM', 'LR', 'LDA', 'PLDA']
-neural_network_models = ['MLP', 'ShallowCNN', 'VGG16', 'InceptionV3', 'ResNet']
+neural_network_models = ['MLP', 'ShallowCNN', 'VGG16', 'InceptionV3', 'ResNet', 'DenseNet']
 parser = argparse.ArgumentParser(description='P1 Cell Image Classification')
 parser.add_argument('--dataset', default='hela')
 parser.add_argument('--space', choices=['image', 'wndchrm', 'rcdt'], required=True)
