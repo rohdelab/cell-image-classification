@@ -79,9 +79,10 @@ def nn_clf(model_name, dataset, args):
     acc = []
     confs = []
     for split, (train_idx, test_idx) in enumerate(cv.split(np.zeros(y.shape[0]), y)):
-        print('training on split {}'.format(split))
         x_train, y_train = x[train_idx], y[train_idx]
         x_test, y_test = x[test_idx], y[test_idx]
+
+        print('training on split {}, training samples {}, test samples {}'.format(split, x_train.shape[0], x_test.shape[0]))
 
         input_shape = x_train.shape[1:]
         x_train = np.reshape(x_train, (x_train.shape[0], -1))
@@ -130,6 +131,7 @@ def nn_clf(model_name, dataset, args):
           val_samples = int(x_train.shape[0]*validation_split)
           x_train, y_train = x_train[:-val_samples], y_train[:-val_samples]
           x_train_val, y_train_val = x_train[-val_samples:], y_train[-val_samples:]
+          print('split training samples {}, validation samples {}'.format(x_train.shape[0], x_train_val.shape[0]))
           datagen = ImageDataGenerator(
               featurewise_center=True,
               featurewise_std_normalization=True,
@@ -154,7 +156,7 @@ def nn_clf(model_name, dataset, args):
             early_stop = tf.keras.callbacks.EarlyStopping(monitor='acc', min_delta=0.0001, patience=5, verbose=1, mode='auto')
             if args.data_augmentation:
               # fits the model on batches with real-time data augmentation:
-              model.fit_generator(datagen.flow(x_train, y_train, batch_size=batch_size),
+              model.fit_generator(datagen.flow(x_train, y_train, batch_size=batch_size), verbose=2,
                                   steps_per_epoch=len(x_train) / batch_size, epochs=100, 
                                   validation_data=(x_train_val, y_train_val), callbacks=[early_stop])
             else:
