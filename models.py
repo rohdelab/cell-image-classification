@@ -1,6 +1,7 @@
 import sys
 sys.path.append('optimaltransport')
 import numpy as np
+from pathlib import Path
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import classification_report
 from sklearn.metrics import confusion_matrix
@@ -20,6 +21,7 @@ def build_model(model_name, input_shape, num_classes, transfer_learning):
     from tensorflow.keras.applications import densenet
     from tensorflow.keras.applications import vgg16
     from tensorflow.keras.applications import InceptionV3
+    from tensorflow.keras.applications import ResNet50
     from tensorflow.keras.models import Model
 
     weights = 'imagenet' if transfer_learning else None
@@ -54,20 +56,28 @@ def build_model(model_name, input_shape, num_classes, transfer_learning):
         predictions = Dense(num_classes, activation="softmax")(x)
         model = Model(inputs=base_model.input, outputs=predictions)
     elif model_name == 'DenseNet':
-        model = densenet.DenseNet121(weights='imagenet', include_top=False, input_shape=input_shape)
-        x = Flatten()(model.output)
+        base_model = densenet.DenseNet121(weights='imagenet', include_top=False, input_shape=input_shape)
+        x = Flatten()(base_model.output)
         predictions = Dense(num_classes, activation="softmax")(x)
-        model = Model(inputs=model.input, outputs=predictions)
+        model = Model(inputs=base_model.input, outputs=predictions)
+    elif model_name == 'ResNet':
+        print('Building RestNet model...')
+        base_model = ResNet50(weights=weights, include_top=False, input_shape=input_shape)
+        x = Flatten()(base_model.output)
+        predictions = Dense(num_classes, activation="softmax")(x)
+        model = Model(inputs=base_model.input, outputs=predictions)
 
     return base_model, model
 
 
 def nn_clf(model_name, dataset, args):
     import tensorflow as tf
+    from tensorflow.keras.preprocessing.image import ImageDataGenerator
     x, y = dataset['x'], dataset['y']
     # x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.1, shuffle=True, stratify=y)
-    cv = StratifiedKFold(n_splits=10, shuffle=True)
+    cv = StratifiedKFold(n_splits=args.splits, shuffle=True)
     acc = []
+    confs = []
     for split, (train_idx, test_idx) in enumerate(cv.split(np.zeros(y.shape[0]), y)):
         print('training on split {}'.format(split))
         x_train, y_train = x[train_idx], y[train_idx]
@@ -101,8 +111,12 @@ def nn_clf(model_name, dataset, args):
         elif model_name == 'InceptionV3':
             lr = 0.00001
             batch_size = 8
+        elif model_name == 'ResNet':
+            lr = 1e-5
+            batch_size = 16
         else:
             lr = 5e-4
+        validation_split = 0.1
 
         if 'classnames' in dataset:
             classnames = dataset['classnames']
@@ -111,8 +125,22 @@ def nn_clf(model_name, dataset, args):
 
         y_train = tf.keras.utils.to_categorical(y_train, num_classes=len(classnames))
         y_test = tf.keras.utils.to_categorical(y_test, num_classes=len(classnames))
+        
+        if args.data_augmentation:
+          val_samples = int(x_train.shape[0]*validation_split)
+          x_train, y_train = x_train[:-val_samples], y_train[:-val_samples]
+          x_train_val, y_train_val = x_train[-val_samples:], y_train[-val_samples:]
+          datagen = ImageDataGenerator(
+              featurewise_center=True,
+              featurewise_std_normalization=True,
+              rotation_range=20,
+              width_shift_range=0.2,
+              height_shift_range=0.2,
+              horizontal_flip=True)
+          datagen.fit(x_train)
+  
 
-        if args.transfer_learning and model_name in ['VGG16', 'InceptionV3']:
+        if args.transfer_learning and model_name not in ['MLP', 'ShallowCNN']:
             print("using pretrained weights {}".format(model_name))
         else:
             print("training {} from scratch...".format(model_name))
@@ -124,15 +152,23 @@ def nn_clf(model_name, dataset, args):
             model.compile(loss='categorical_crossentropy', optimizer=opt, metrics=['accuracy'])
 
             early_stop = tf.keras.callbacks.EarlyStopping(monitor='acc', min_delta=0.0001, patience=5, verbose=1, mode='auto')
-            model.fit(x_train, y_train, verbose=2, batch_size=batch_size, epochs=100,
-                      validation_split=0.1, callbacks=[early_stop])
+            if args.data_augmentation:
+              # fits the model on batches with real-time data augmentation:
+              model.fit_generator(datagen.flow(x_train, y_train, batch_size=batch_size),
+                                  steps_per_epoch=len(x_train) / batch_size, epochs=100, 
+                                  validation_data=(x_train_val, y_train_val), callbacks=[early_stop])
+            else:
+              model.fit(x_train, y_train, verbose=2, batch_size=batch_size, epochs=1,
+                        validation_split=validation_split, callbacks=[early_stop])
 
-        if args.transfer_learning and base_model is not None:
+        if args.transfer_learning:
             for layer in base_model.layers:
                 layer.trainable = False
+            print('finetuning last layer...')
             optimize(lr)
             for layer in base_model.layers:
                 layer.trainable = True
+            print('finetunning the whole network...')
             optimize(lr/10.)
         else:
             optimize(lr)
@@ -140,8 +176,15 @@ def nn_clf(model_name, dataset, args):
         _, train_acc = model.evaluate(x_train, y_train)
         _, test_acc = model.evaluate(x_test, y_test)
         acc.append(test_acc)
+        y_pred = np.argmax(model.predict(x_test), 1)
+        confs.append(confusion_matrix(np.argmax(y_test, 1), y_pred))
         print("split {}, train accuracy: {}, test accuracy {}, running test accuracy {}".format(split, train_acc, test_acc, np.mean(acc)))
-    print("10-fold cross validation accuracy: {:.4f} (+/- {:.4f})".format(np.mean(acc), np.std(acc)))
+        Path('checkpoints/{}/{}'.format(args.dataset, args.model)).mkdir(parents=True, exist_ok=True)
+        model.save('checkpoints/{}/{}/model_T{}U{}split{}.h5'.format(args.dataset, args.model, int(args.transfer_learning), int(args.data_augmentation), split))
+
+    print("{}-fold cross validation accuracy: {:.4f} (+/- {:.4f})".format(args.splits, np.mean(acc), np.std(acc)))
+    print('confusion matrix:')
+    print(np.stack(confs, 0).mean(axis=0))
 
 
 def sklearn_clf(model_name, dataset, args):
@@ -184,5 +227,7 @@ def sklearn_clf(model_name, dataset, args):
 
     print("Best parameter (CV score=%0.3f):" % search.best_score_)
     print(search.best_params_)
+    print('confusion matrix:')
+    print(np.stack(confs, 0).mean(axis=0))
     # scores = cross_val_score(pipeline_clf, x, y, cv=cv, n_jobs=-1)  # n_jobs=-1 to use all processors
     # print("10-fold cross validation accuracy: %0.2f (+/- %0.2f)" % (scores.mean(), scores.std() * 2))

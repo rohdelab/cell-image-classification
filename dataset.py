@@ -17,7 +17,8 @@ from skimage.transform import resize
 
 # image_target_size = 224  # original size 382x382
 # image_target_size = (447, 382)  # width, height
-image_target_size = (224, 224)  # width, height
+#image_target_size = (224, 224)  # width, height
+#image_target_size = (64, 64)  # width, height
 
 
 def extract_wndchrm_feats_single(gray_img):
@@ -122,43 +123,44 @@ def vis_data(x, y):
     plt.show()
 
 
-def load_dataset(dataset, space='image'):
+def load_dataset(dataset, space='image', image_size=(256, 256)):
     image_dir = os.path.join('data', dataset)
     if not os.path.isdir(image_dir):
         raise ValueError('Directory "{}" does not exit'.format(image_dir))
 
-    wndchrm_feat_file = os.path.join(image_dir, '{}_wndchrm_feats{}.npz'.format(dataset, *image_target_size))
-    rcdt_feat_file = os.path.join(image_dir, '{}_rcdt_feats{}.npz'.format(dataset, *image_target_size))
+    wndchrm_feat_file = os.path.join(image_dir, '{}_wndchrm_feats{}.npz'.format(dataset, *image_size))
+    rcdt_feat_file = os.path.join(image_dir, '{}_rcdt_feats{}.npz'.format(dataset, *image_size))
 
     if space == 'image':
-        dataset = load_images(image_dir, target_size=image_target_size)
+        dataset = load_images(image_dir, target_size=image_size)
         print('loaded raw images')
     elif space == 'wndchrm':
         if not os.path.isfile(wndchrm_feat_file):
             print('precomputed wndchrm features not found, computing and saving {}...'.format(wndchrm_feat_file))
-            save_wndchrm_feats(load_images(image_dir, target_size=image_target_size), wndchrm_feat_file)
+            save_wndchrm_feats(load_images(image_dir, target_size=image_size), wndchrm_feat_file)
         dataset = np.load(wndchrm_feat_file)
         print('loaded wndchrm features')
     elif space == 'rcdt':
         if not os.path.isfile(rcdt_feat_file):
             print('precomputed RCDT features not found, computing and saving {}...'.format(rcdt_feat_file))
-            save_rcdt_feats(load_images(image_dir, target_size=image_target_size), rcdt_feat_file)
+            save_rcdt_feats(load_images(image_dir, target_size=image_size), rcdt_feat_file)
         dataset = np.load(rcdt_feat_file)
         print('loaded RCDT features')
 
     return dataset
 
 
-def load_dataset_reproduce(dataset, space='image'):
-    if dataset != 'hela':
-        raise ValueError('Reproduction of experimental results only support Hela dataset')
+def load_dataset_preprocessed(dataset, space='image'):
+    # if dataset != 'hela':
+    #     raise ValueError('Reproduction of experimental results only support Hela dataset')
+    assert space == 'image'
     from scipy.io import loadmat
-    data_space = {'image': 'image', 'wndchrm': 'wnd', 'rcdt': 'rcdt'}[space]
+    data_space = {'image': 'affine', 'wndchrm': 'wnd', 'rcdt': 'rcdt'}[space]
     prefix = {'image': 'I', 'wndchrm': 'W', 'rcdt': 'R'}[space]
-    datadir = 'data/hela_preprocessed'
+    datadir = os.path.join('data_preprocessed/{}/{}'.format(dataset, data_space))
+    print('using data from {}'.format(datadir))
     y = loadmat(os.path.join(datadir, 'labels'))
     y = np.squeeze(y['label'])
-    datadir = os.path.join(datadir, data_space, 'bcls')
     x = []
     for i in range(y.size):
         data = loadmat('{}/{}{}.mat'.format(datadir, prefix, i + 1))['xx']
@@ -170,6 +172,12 @@ def load_dataset_reproduce(dataset, space='image'):
     rand_index = np.random.permutation(x.shape[0])
     x = x[rand_index]
     y = y[rand_index]
+    """
+    from pathlib import Path
+    for i in range(x.shape[0]):
+      Path('tmp/{}'.format(y[i])).mkdir(parents=True, exist_ok=True)
+      Image.fromarray((x[i]*225).astype(np.uint8)).save(('tmp/{}/{}.tiff'.format(y[i], i)))
+    """
     return {'x': np.array(x), 'y': y}
 
 
