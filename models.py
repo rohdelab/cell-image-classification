@@ -108,16 +108,6 @@ def nn_clf(model_name, dataset, args):
     else:
         print("training {} from scratch...".format(model_name))
 
-    base_model, model = build_model(model_name, x.shape[1:], len(classnames), args.transfer_learning)
-    optimizer = tf.keras.optimizers.Adam(lr=lr)
-
-    optimizer_state = [optimizer.iterations, optimizer.lr, optimizer.beta_1,
-                       optimizer.beta_2, optimizer.decay]
-    optimizer_reset = tf.variables_initializer(optimizer_state)
-
-    Path('./cache').mkdir(exist_ok=True)
-    model.save_weights('./cache/model_init_weights.h5')
-
     def fit_model(lr):
         early_stop = tf.keras.callbacks.EarlyStopping(monitor='acc', min_delta=0.0001, patience=5, verbose=2, mode='auto')
         if args.data_augmentation:
@@ -133,8 +123,7 @@ def nn_clf(model_name, dataset, args):
     acc = []
     confs = []
     for split, (train_idx, test_idx) in enumerate(cv.split(np.zeros(y.shape[0]), y)):
-        model.load_weights('./cache/model_init_weights.h5')
-        tf.keras.backend.get_session().run(optimizer_reset)
+        tf.keras.backend.clear_session() 
         x_train, y_train = x[train_idx], y[train_idx]
         x_test, y_test = x[test_idx], y[test_idx]
         print('============ training on split {}, training samples {}, test samples {}'.format(split, x_train.shape[0], x_test.shape[0]))
@@ -156,19 +145,21 @@ def nn_clf(model_name, dataset, args):
               horizontal_flip=True)
           datagen.fit(x_train)
   
+        base_model, model = build_model(model_name, x.shape[1:], len(classnames), args.transfer_learning)
 
         if args.transfer_learning:
             for layer in base_model.layers:
                 layer.trainable = False
-            model.compile(loss='categorical_crossentropy', optimizer=optimizer, metrics=['accuracy'])
+            model.compile(loss='categorical_crossentropy', optimizer=tf.keras.optimizers.Adam(lr=lr), metrics=['accuracy'])
             print('finetuning last layer...')
             fit_model(lr)
             for layer in base_model.layers:
                 layer.trainable = True
-            model.compile(loss='categorical_crossentropy', optimizer=optimizer, metrics=['accuracy'])
+            model.compile(loss='categorical_crossentropy', optimizer=tf.keras.optimizers.Adam(lr=lr), metrics=['accuracy'])
             print('finetunning the whole network...')
             fit_model(lr/10.)
         else:
+            model.compile(loss='categorical_crossentropy', optimizer=tf.keras.optimizers.Adam(lr=lr), metrics=['accuracy'])
             fit_model(lr)
 
         _, train_acc = model.evaluate(x_train, y_train, verbose=0)
