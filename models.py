@@ -77,14 +77,17 @@ def nn_clf(model_name, dataset, args):
     os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
     x, y = dataset['x'], dataset['y']
-    input_shape = x.shape[1:]
     if 'classnames' in dataset:
         classnames = dataset['classnames']
     else:
         classnames = list(map(str, sorted(list(set(y)))))
 
-    # scaler = StandardScaler()
-    # x = scaler.fit_transform(x)
+    """
+    input_shape = x.shape[1:]
+    scaler = StandardScaler()
+    x = scaler.fit_transform(x.reshape([x.shape[0], -1]))
+    x = x.reshape([x.shape[0], *input_shape])
+    """
 
     if model_name == 'MLP':
         x = np.reshape(x, (x.shape[0], -1))
