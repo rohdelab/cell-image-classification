@@ -110,7 +110,6 @@ def nn_clf(model_name, dataset, args):
 
     base_model, model = build_model(model_name, x.shape[1:], len(classnames), args.transfer_learning)
     optimizer = tf.keras.optimizers.Adam(lr=lr)
-    model.compile(loss='categorical_crossentropy', optimizer=optimizer, metrics=['accuracy'])
 
     optimizer_state = [optimizer.iterations, optimizer.lr, optimizer.beta_1,
                        optimizer.beta_2, optimizer.decay]
@@ -161,10 +160,12 @@ def nn_clf(model_name, dataset, args):
         if args.transfer_learning:
             for layer in base_model.layers:
                 layer.trainable = False
+            model.compile(loss='categorical_crossentropy', optimizer=optimizer, metrics=['accuracy'])
             print('finetuning last layer...')
             fit_model(lr)
             for layer in base_model.layers:
                 layer.trainable = True
+            model.compile(loss='categorical_crossentropy', optimizer=optimizer, metrics=['accuracy'])
             print('finetunning the whole network...')
             fit_model(lr/10.)
         else:
