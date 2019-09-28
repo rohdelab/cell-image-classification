@@ -73,58 +73,69 @@ def build_model(model_name, input_shape, num_classes, transfer_learning):
 
 def nn_clf(model_name, dataset, args):
     import tensorflow as tf
-    os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
     from tensorflow.keras.preprocessing.image import ImageDataGenerator
+    os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
+
     x, y = dataset['x'], dataset['y']
+    input_shape = x.shape[1:]
+    if 'classnames' in dataset:
+        classnames = dataset['classnames']
+    else:
+        classnames = list(map(str, sorted(list(set(y)))))
+
+    # scaler = StandardScaler()
+    # x = scaler.fit_transform(x)
+
+    if model_name == 'MLP':
+        x = np.reshape(x, (x.shape[0], -1))
+    else:
+        if x.ndim == 3: # grayscale image
+            x = np.repeat(x[..., np.newaxis], 3, axis=3)
+        else:
+            assert x.ndim == 4
+            assert x.shape[-1] == 3
+
+    batch_size = 32
+    lr = {'MLP': 1e-5, 'ShallowCNN': 5e-4, 'VGG16': 1e-5, 'InceptionV3': 1e-5, 'ResNet': 1e-5, 'DenseNet': 1e-5}[model_name]
+    batch_size = {'MLP': 32, 'ShallowCNN': 32, 'VGG16': 16, 'InceptionV3': 8, 'ResNet': 16, 'DenseNet': 16}[model_name]
+    validation_split = 0.1
+
+    if args.transfer_learning and model_name not in ['MLP', 'ShallowCNN']:
+        print("using pretrained weights {}".format(model_name))
+    else:
+        print("training {} from scratch...".format(model_name))
+
+    base_model, model = build_model(model_name, x.shape[1:], len(classnames), args.transfer_learning)
+    optimizer = tf.keras.optimizers.Adam(lr=lr)
+    model.compile(loss='categorical_crossentropy', optimizer=optimizer, metrics=['accuracy'])
+
+    optimizer_state = [optimizer.iterations, optimizer.lr, optimizer.beta_1,
+                       optimizer.beta_2, optimizer.decay]
+    optimizer_reset = tf.variables_initializer(optimizer_state)
+
+    Path('./cache').mkdir(exist_ok=True)
+    model.save_weights('./cache/model_init_weights.h5')
+
+    def fit_model(lr):
+        early_stop = tf.keras.callbacks.EarlyStopping(monitor='acc', min_delta=0.0001, patience=5, verbose=2, mode='auto')
+        if args.data_augmentation:
+          model.fit_generator(datagen.flow(x_train, y_train, batch_size=batch_size), verbose=2,
+                              steps_per_epoch=len(x_train) / batch_size, epochs=100, 
+                              validation_data=(x_train_val, y_train_val), callbacks=[early_stop])
+        else:
+          model.fit(x_train, y_train, verbose=2, batch_size=batch_size, epochs=100,
+                    validation_split=validation_split, callbacks=[early_stop])
+
     # x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.1, shuffle=True, stratify=y)
     cv = StratifiedKFold(n_splits=args.splits, shuffle=True)
     acc = []
     confs = []
     for split, (train_idx, test_idx) in enumerate(cv.split(np.zeros(y.shape[0]), y)):
+        model.load_weights('./cache/model_init_weights.h5')
+        tf.keras.backend.get_session().run(optimizer_reset)
         x_train, y_train = x[train_idx], y[train_idx]
         x_test, y_test = x[test_idx], y[test_idx]
-
         print('============ training on split {}, training samples {}, test samples {}'.format(split, x_train.shape[0], x_test.shape[0]))
-
-        input_shape = x_train.shape[1:]
-        x_train = np.reshape(x_train, (x_train.shape[0], -1))
-        x_test = np.reshape(x_test, (x_test.shape[0], -1))
-        # scaler = StandardScaler()
-        # x_train = scaler.fit_transform(x_train)
-        # x_test = scaler.transform(x_test)
-
-        if model_name != 'MLP':
-            x_train = np.reshape(x_train, [-1, *input_shape])
-            x_test = np.reshape(x_test, [-1, *input_shape])
-            if x_train.ndim == 3:
-                x_train = np.repeat(x_train[..., np.newaxis], 3, axis=3)
-                x_test = np.repeat(x_test[..., np.newaxis], 3, axis=3)
-            else:
-                assert x_train.ndim == 4
-                assert x_train.shape[-1] == 3
-
-        batch_size = 32
-        if model_name == 'MLP':
-            lr = 0.00001
-        elif model_name == 'ShallowCNN':
-            lr = 0.0005
-        elif model_name == 'VGG16':
-            lr = 0.00001
-            batch_size = 16
-        elif model_name == 'InceptionV3':
-            lr = 0.00001
-            batch_size = 8
-        elif model_name == 'ResNet':
-            lr = 1e-5
-            batch_size = 16
-        else:
-            lr = 5e-4
-        validation_split = 0.1
-
-        if 'classnames' in dataset:
-            classnames = dataset['classnames']
-        else:
-            classnames = list(map(str, sorted(list(set(dataset['y'])))))
 
         y_train = tf.keras.utils.to_categorical(y_train, num_classes=len(classnames))
         y_test = tf.keras.utils.to_categorical(y_test, num_classes=len(classnames))
@@ -144,38 +155,17 @@ def nn_clf(model_name, dataset, args):
           datagen.fit(x_train)
   
 
-        if args.transfer_learning and model_name not in ['MLP', 'ShallowCNN']:
-            print("using pretrained weights {}".format(model_name))
-        else:
-            print("training {} from scratch...".format(model_name))
-
-        base_model, model = build_model(model_name, x_train.shape[1:], len(classnames), args.transfer_learning)
-
-        def optimize(lr):
-            opt = tf.keras.optimizers.Adam(lr=lr)
-            model.compile(loss='categorical_crossentropy', optimizer=opt, metrics=['accuracy'])
-
-            early_stop = tf.keras.callbacks.EarlyStopping(monitor='acc', min_delta=0.0001, patience=5, verbose=2, mode='auto')
-            if args.data_augmentation:
-              # fits the model on batches with real-time data augmentation:
-              model.fit_generator(datagen.flow(x_train, y_train, batch_size=batch_size), verbose=2,
-                                  steps_per_epoch=len(x_train) / batch_size, epochs=100, 
-                                  validation_data=(x_train_val, y_train_val), callbacks=[early_stop])
-            else:
-              model.fit(x_train, y_train, verbose=2, batch_size=batch_size, epochs=100,
-                        validation_split=validation_split, callbacks=[early_stop])
-
         if args.transfer_learning:
             for layer in base_model.layers:
                 layer.trainable = False
             print('finetuning last layer...')
-            optimize(lr)
+            fit_model(lr)
             for layer in base_model.layers:
                 layer.trainable = True
             print('finetunning the whole network...')
-            optimize(lr/10.)
+            fit_model(lr/10.)
         else:
-            optimize(lr)
+            fit_model(lr)
 
         _, train_acc = model.evaluate(x_train, y_train, verbose=0)
         _, test_acc = model.evaluate(x_test, y_test, verbose=0)
@@ -186,7 +176,7 @@ def nn_clf(model_name, dataset, args):
         print(np.stack(confs, 0).mean(axis=0))
         print("split {}, train accuracy: {}, test accuracy {}, running test accuracy {}".format(split, train_acc, test_acc, np.mean(acc)))
         Path('checkpoints/{}/{}'.format(args.dataset, args.model)).mkdir(parents=True, exist_ok=True)
-        model.save('checkpoints/{}/{}/model_T{}U{}split{}.h5'.format(args.dataset, args.model, int(args.transfer_learning), int(args.data_augmentation), split))
+        model.save_weights('checkpoints/{}/{}/model_T{}U{}split{}.h5'.format(args.dataset, args.model, int(args.transfer_learning), int(args.data_augmentation), split))
 
     print("{}-fold cross validation accuracy: {:.4f} (+/- {:.4f})".format(args.splits, np.mean(acc), np.std(acc)))
     print('confusion matrix:')
