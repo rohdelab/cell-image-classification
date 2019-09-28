@@ -121,7 +121,7 @@ def vis_data(x, y):
     plt.show()
 
 
-def load_dataset(dataset, space='image', image_size=(256, 256)):
+def load_dataset(dataset, space='image', target_image_size=(256, 256)):
     image_dir = os.path.join('data', dataset)
     if not os.path.isdir(image_dir):
         raise ValueError('Directory "{}" does not exit'.format(image_dir))
@@ -150,7 +150,7 @@ def load_dataset(dataset, space='image', image_size=(256, 256)):
     return dataset
 
 
-def load_dataset_preprocessed(dataset, space='image'):
+def load_dataset_preprocessed(dataset, space='image', target_image_size=(256, 256)):
     # if dataset != 'hela':
     #     raise ValueError('Reproduction of experimental results only support Hela dataset')
     assert space == 'image'
@@ -165,7 +165,7 @@ def load_dataset_preprocessed(dataset, space='image'):
     for i in range(y.size):
         data = loadmat('{}/{}{}.mat'.format(datadir, prefix, i + 1))['xx']
         if space == 'image':
-            data = resize(data, (256, 256), mode='reflect', anti_aliasing=True)
+            data = resize(data, target_image_size, mode='reflect', anti_aliasing=True)
             data = data * 255 / data.max()
         x.append(data)
     x = np.array(x)

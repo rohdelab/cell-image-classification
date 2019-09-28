@@ -144,7 +144,9 @@ def nn_clf(model_name, dataset, args):
               width_shift_range=0.2,
               height_shift_range=0.2,
               horizontal_flip=True)
-          datagen.fit(x_train)
+
+          # # compute quantities required for featurewise normalization, not necessary here
+          # datagen.fit(x_train)
   
         base_model, model = build_model(model_name, x.shape[1:], len(classnames), args.transfer_learning)
 

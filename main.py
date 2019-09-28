@@ -19,6 +19,8 @@ parser.add_argument("--SVM-kernel", type=str, choices=['rbf', 'linear'], default
 parser.add_argument("--preprocessed",
                     help='reproduce the results on Hela dataset reported in the paper',
                     action='store_true')
+parser.add_argument("--target_image_size", type=int, choices=[32, 64, 128, 256], required=True,
+                    help='image size used for classification')
 
 if __name__ == '__main__':
     np.random.seed(123)
@@ -30,9 +32,9 @@ if __name__ == '__main__':
 
     print("classification on {} space using {}...".format(args.space, args.model))
     if args.preprocessed:
-        dataset = load_dataset_preprocessed(args.dataset, args.space)
+        dataset = load_dataset_preprocessed(args.dataset, args.space, target_image_size=(args.target_image_size, args.target_image_size))
     else:
-        dataset = load_dataset(args.dataset, args.space, image_size=(256, 256))
+        dataset = load_dataset(args.dataset, args.space, target_image_size=(args.target_image_size, args.target_image_size))
 
     if args.model in neural_network_models:
         nn_clf(args.model, dataset, args)
