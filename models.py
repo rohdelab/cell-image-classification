@@ -108,7 +108,8 @@ def nn_clf(model_name, dataset, args):
     else:
         print("training {} from scratch...".format(model_name))
 
-    def fit_model(lr):
+    def optimize(lr):
+        model.compile(loss='categorical_crossentropy', optimizer=tf.keras.optimizers.Adam(lr=lr), metrics=['accuracy'])
         early_stop = tf.keras.callbacks.EarlyStopping(monitor='acc', min_delta=0.0001, patience=5, verbose=2, mode='auto')
         if args.data_augmentation:
           model.fit_generator(datagen.flow(x_train, y_train, batch_size=batch_size), verbose=2,
@@ -150,17 +151,14 @@ def nn_clf(model_name, dataset, args):
         if args.transfer_learning:
             for layer in base_model.layers:
                 layer.trainable = False
-            model.compile(loss='categorical_crossentropy', optimizer=tf.keras.optimizers.Adam(lr=lr), metrics=['accuracy'])
             print('finetuning last layer...')
-            fit_model(lr)
+            optimize(lr)
             for layer in base_model.layers:
                 layer.trainable = True
-            model.compile(loss='categorical_crossentropy', optimizer=tf.keras.optimizers.Adam(lr=lr), metrics=['accuracy'])
             print('finetunning the whole network...')
-            fit_model(lr/10.)
+            optimize(lr/10.)
         else:
-            model.compile(loss='categorical_crossentropy', optimizer=tf.keras.optimizers.Adam(lr=lr), metrics=['accuracy'])
-            fit_model(lr)
+            optimize(lr)
 
         _, train_acc = model.evaluate(x_train, y_train, verbose=0)
         _, test_acc = model.evaluate(x_test, y_test, verbose=0)
