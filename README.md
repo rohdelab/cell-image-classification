@@ -1,6 +1,6 @@
-# Cell Image Classification
+# Cell Image Classification Toolbox
 
-Code for training and testing of a set of statistical machine learning models on the 2D HeLa dataset (https://ome.irp.nia.nih.gov/iicbu2008/hela/index.html).
+A toolbox for training cell images classification models. Supported models include neural networks (MLP, customized CNN, VGG, InceptionV3, ResNet, etc.), and statistical ML models (SVM, logitic regression, random forest, etc.). Train models with cross-validation, data augmentation and fine-tuning.
 
 ## Dependencies
 
@@ -13,8 +13,10 @@ Code for training and testing of a set of statistical machine learning models on
 
 ```
 usage: main.py [-h] [--dataset DATASET] --space {image,wndchrm,rcdt} --model
-               {RF,KNN,SVM,LR,LDA,PLDA,MLP,ShallowCNN,VGG16,InceptionV3}
-               [--transfer-learning] [--SVM-kernel {rbf,linear}] [--preprocessed]
+               {RF,KNN,SVM,LR,LDA,PLDA,MLP,ShallowCNN,VGG16,InceptionV3,ResNet,DenseNet}
+               [-T] [-U] [--splits {2,3,4,5,6,7,8,9,10}]
+               [--SVM-kernel {rbf,linear}] [--preprocessed]
+               --target_image_size {32,64,75,128,256}
 
 P1 Cell Image Classification
 
@@ -22,12 +24,20 @@ optional arguments:
   -h, --help            show this help message and exit
   --dataset DATASET
   --space {image,wndchrm,rcdt}
-  --model {RF,KNN,SVM,LR,LDA,PLDA,MLP,ShallowCNN,VGG16,InceptionV3}
-  --transfer-learning   neural network use pretrained weights instead of
+  --model {RF,KNN,SVM,LR,LDA,PLDA,MLP,ShallowCNN,VGG16,InceptionV3,ResNet,DenseNet}
+  -T, --transfer-learning
+                        neural network use pretrained weights instead of
                         training from scratch
+  -U, --data_augmentation
+                        use data augmentation for neural network based
+                        approaches
+  --splits {2,3,4,5,6,7,8,9,10}
+                        number of splits for cross-validation
   --SVM-kernel {rbf,linear}
-  --preprocessed           reproduce the results on Hela dataset reported in the
+  --preprocessed        reproduce the results on Hela dataset reported in the
                         paper
+  --target_image_size {32,64,75,128,256}
+                        image size used for classification
 ```
 
 **Examples**
