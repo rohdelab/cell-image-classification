@@ -1,6 +1,6 @@
 # Cell Image Classification Toolbox
 
-A toolbox for training cell images classification models. Supported models include neural networks (MLP, customized CNN, VGG, InceptionV3, ResNet, etc.), and statistical ML models (SVM, logitic regression, random forest, etc.). Train models with cross-validation, data augmentation and fine-tuning.
+A toolbox for training cell image classification models. Supported models include neural networks (MLP, customized CNN, VGG, InceptionV3, ResNet, etc.), statistical ML models (SVM, logitic regression, random forest, etc.), and transport based morphometry. Train models with cross-validation, data augmentation and fine-tuning.
 
 This repo accompanies the paper "Cell image classification: a comparative overview" (https://arxiv.org/abs/1906.03316).
 
